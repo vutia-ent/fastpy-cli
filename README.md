@@ -53,6 +53,22 @@ fastpy new my-api --no-git
 fastpy new my-api --branch dev
 ```
 
+### Project Commands (inside a Fastpy project)
+
+When inside a Fastpy project, `fastpy` proxies commands to the project's `cli.py`:
+
+```bash
+cd my-api
+
+# These all work with fastpy instead of python cli.py
+fastpy serve                              # Start dev server
+fastpy make:resource Post -f title:string # Generate resources
+fastpy make:model Category -m             # Generate model with migration
+fastpy make:service Payment               # Generate service
+fastpy db:migrate                         # Run migrations
+fastpy route:list                         # List all routes
+```
+
 ### AI-Powered Resource Generation
 
 Generate resources using natural language with AI:

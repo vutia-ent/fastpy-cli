@@ -22,6 +22,31 @@ console = Console()
 REPO_URL = "https://github.com/vutia-ent/fastpy.git"
 DOCS_URL = "https://fastpy.ve.ke"
 
+# Commands that are handled by fastpy CLI itself (not proxied to project cli.py)
+FASTPY_COMMANDS = {"new", "version", "docs", "upgrade", "ai", "config", "--help", "-h", "--version"}
+
+
+def is_fastpy_project() -> bool:
+    """Check if we're inside a Fastpy project."""
+    cli_py = Path.cwd() / "cli.py"
+    return cli_py.exists()
+
+
+def proxy_to_project_cli(args: list[str]) -> int:
+    """Proxy command to project's cli.py."""
+    cli_py = Path.cwd() / "cli.py"
+
+    # Check for virtual environment
+    venv_python = Path.cwd() / "venv" / "bin" / "python"
+    if venv_python.exists():
+        python_cmd = str(venv_python)
+    else:
+        python_cmd = sys.executable
+
+    cmd = [python_cmd, str(cli_py)] + args
+    result = subprocess.run(cmd)
+    return result.returncode
+
 
 def run_command(cmd: list, cwd: Optional[Path] = None, capture: bool = False) -> subprocess.CompletedProcess:
     """Run a shell command."""
@@ -289,6 +314,15 @@ def config() -> None:
 
 def main() -> None:
     """Entry point for the CLI."""
+    # Check if we should proxy to project cli.py
+    if len(sys.argv) > 1:
+        command = sys.argv[1]
+
+        # If it's not a fastpy CLI command and we're in a project, proxy it
+        if command not in FASTPY_COMMANDS and is_fastpy_project():
+            exit_code = proxy_to_project_cli(sys.argv[1:])
+            sys.exit(exit_code)
+
     app()
 
 
