@@ -53,6 +53,32 @@ fastpy new my-api --no-git
 fastpy new my-api --branch dev
 ```
 
+### AI-Powered Resource Generation
+
+Generate resources using natural language with AI:
+
+```bash
+# Generate resources from a description
+fastpy ai "Create a blog with posts, categories, and tags"
+
+# Auto-execute generated commands
+fastpy ai "E-commerce with products, orders, and customers" --execute
+
+# Use a specific provider
+fastpy ai "User management system" --provider ollama
+```
+
+**Supported AI Providers:**
+- **Anthropic** (Claude) - Default, set `ANTHROPIC_API_KEY`
+- **OpenAI** (GPT-4) - Set `OPENAI_API_KEY`
+- **Ollama** (Local) - Free, runs locally
+
+```bash
+# Configure your preferred provider
+export FASTPY_AI_PROVIDER=anthropic  # or openai, ollama
+export ANTHROPIC_API_KEY=your-key
+```
+
 ### Other commands
 
 ```bash
@@ -64,6 +90,9 @@ fastpy docs
 
 # Upgrade CLI
 fastpy upgrade
+
+# Show AI configuration
+fastpy config
 ```
 
 ## What is Fastpy?

@@ -178,6 +178,115 @@ def upgrade() -> None:
         console.print("[red]Error:[/red] Failed to upgrade. Try: pip install --upgrade fastpy-cli")
 
 
+@app.command()
+def ai(
+    prompt: str = typer.Argument(..., help="Description of resources to generate"),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="AI provider: anthropic, openai, ollama"),
+    execute: bool = typer.Option(False, "--execute", "-e", help="Execute commands automatically"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show commands without executing"),
+) -> None:
+    """Generate resources using AI.
+
+    Examples:
+        fastpy ai "Create a blog with posts, categories, and tags"
+        fastpy ai "E-commerce with products, orders, and customers" --execute
+        fastpy ai "User management system" --provider ollama
+    """
+    from fastpy_cli.ai import get_provider, parse_ai_response
+
+    console.print()
+    console.print(Panel.fit(
+        f"[bold blue]AI Resource Generator[/bold blue]",
+        border_style="blue",
+    ))
+    console.print()
+    console.print(f"[dim]Prompt:[/dim] {prompt}")
+    console.print()
+
+    # Get AI provider
+    ai_provider = get_provider(provider)
+    if not ai_provider:
+        raise typer.Exit(1)
+
+    # Generate response
+    with console.status("[bold green]Thinking...[/bold green]"):
+        response = ai_provider.generate(prompt)
+
+    if not response:
+        console.print("[red]Error:[/red] Failed to get AI response")
+        raise typer.Exit(1)
+
+    # Parse commands
+    commands = parse_ai_response(response)
+    if not commands:
+        console.print("[red]Error:[/red] No valid commands generated")
+        raise typer.Exit(1)
+
+    # Display commands
+    console.print(f"[green]Generated {len(commands)} command(s):[/green]")
+    console.print()
+
+    for i, cmd in enumerate(commands, 1):
+        console.print(f"  [cyan]{i}.[/cyan] {cmd.get('description', 'No description')}")
+        console.print(f"     [dim]{cmd.get('command', '')}[/dim]")
+        console.print()
+
+    # Handle execution
+    if dry_run:
+        console.print("[yellow]Dry run mode - commands not executed[/yellow]")
+        return
+
+    if not execute:
+        execute = typer.confirm("Execute these commands?", default=False)
+
+    if execute:
+        console.print()
+        for cmd in commands:
+            command = cmd.get("command", "")
+            if command:
+                console.print(f"[bold]Running:[/bold] {command}")
+                result = subprocess.run(command, shell=True)
+                if result.returncode != 0:
+                    console.print(f"[red]Command failed with exit code {result.returncode}[/red]")
+                    if not typer.confirm("Continue with remaining commands?", default=True):
+                        break
+                console.print()
+
+        console.print("[green]✓[/green] Done!")
+    else:
+        console.print("[dim]Commands not executed. Use --execute to run automatically.[/dim]")
+
+
+@app.command()
+def config() -> None:
+    """Show AI configuration."""
+    import os
+
+    console.print()
+    console.print("[bold]AI Configuration[/bold]")
+    console.print()
+
+    provider = os.environ.get("FASTPY_AI_PROVIDER", "anthropic")
+    console.print(f"  Provider: [cyan]{provider}[/cyan]")
+
+    if provider == "anthropic":
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        status = "[green]Set[/green]" if key else "[red]Not set[/red]"
+        console.print(f"  ANTHROPIC_API_KEY: {status}")
+    elif provider == "openai":
+        key = os.environ.get("OPENAI_API_KEY", "")
+        status = "[green]Set[/green]" if key else "[red]Not set[/red]"
+        console.print(f"  OPENAI_API_KEY: {status}")
+    elif provider == "ollama":
+        model = os.environ.get("OLLAMA_MODEL", "llama3.2")
+        host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        console.print(f"  OLLAMA_MODEL: [cyan]{model}[/cyan]")
+        console.print(f"  OLLAMA_HOST: [cyan]{host}[/cyan]")
+
+    console.print()
+    console.print("[dim]Set provider with: export FASTPY_AI_PROVIDER=anthropic|openai|ollama[/dim]")
+
+
 def main() -> None:
     """Entry point for the CLI."""
     app()
