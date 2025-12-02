@@ -2,6 +2,7 @@
 """Fastpy CLI - Create production-ready FastAPI projects."""
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,11 +12,18 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
+
+from fastpy_cli import __version__
+from fastpy_cli.config import CONFIG_FILE, get_config, init_config_file
+from fastpy_cli.logger import is_debug, log_debug, log_error, log_info, setup_logger
+from fastpy_cli.utils import safe_execute_command, validate_command
 
 app = typer.Typer(
     name="fastpy",
-    help="Create production-ready FastAPI projects",
-    add_completion=False,
+    help="Create production-ready FastAPI projects with one command.",
+    add_completion=True,  # Enable shell completions
+    no_args_is_help=True,
 )
 console = Console()
 
@@ -23,7 +31,123 @@ REPO_URL = "https://github.com/vutia-ent/fastpy.git"
 DOCS_URL = "https://fastpy.ve.ke"
 
 # Commands that are handled by fastpy CLI itself (not proxied to project cli.py)
-FASTPY_COMMANDS = {"new", "version", "docs", "upgrade", "ai", "config", "--help", "-h", "--version"}
+FASTPY_COMMANDS = {
+    "new",
+    "version",
+    "docs",
+    "upgrade",
+    "ai",
+    "config",
+    "doctor",
+    "init",
+    "libs",
+    "--help",
+    "-h",
+    "--version",
+    "-v",
+    "--verbose",
+    "--debug",
+}
+
+# Available libs for scaffolding
+AVAILABLE_LIBS = {
+    "http": {
+        "name": "Http",
+        "description": "HTTP client facade (GET, POST, PUT, DELETE, etc.)",
+        "dependencies": ["httpx"],
+    },
+    "mail": {
+        "name": "Mail",
+        "description": "Email sending with multiple drivers (SMTP, SendGrid, Mailgun, SES)",
+        "dependencies": [],
+    },
+    "cache": {
+        "name": "Cache",
+        "description": "Caching with multiple drivers (Memory, File, Redis)",
+        "dependencies": [],
+    },
+    "storage": {
+        "name": "Storage",
+        "description": "File storage with multiple drivers (Local, S3, Memory)",
+        "dependencies": [],
+    },
+    "queue": {
+        "name": "Queue",
+        "description": "Job queueing system with multiple drivers (Sync, Memory, Redis)",
+        "dependencies": [],
+    },
+    "events": {
+        "name": "Event",
+        "description": "Event dispatcher with listeners and subscribers",
+        "dependencies": [],
+    },
+    "notifications": {
+        "name": "Notify",
+        "description": "Multi-channel notifications (Mail, Database, Slack, SMS)",
+        "dependencies": [],
+    },
+    "hash": {
+        "name": "Hash",
+        "description": "Password hashing (bcrypt, argon2, sha256)",
+        "dependencies": ["bcrypt"],
+    },
+    "crypt": {
+        "name": "Crypt",
+        "description": "Data encryption (Fernet, AES-256-CBC)",
+        "dependencies": ["cryptography"],
+    },
+}
+
+
+def version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        console.print(f"Fastpy CLI v{__version__}")
+        raise typer.Exit()
+
+
+def verbose_callback(ctx: typer.Context, value: bool) -> None:
+    """Enable verbose output."""
+    if value:
+        config = get_config()
+        setup_logger(verbose=True, log_file=config.log_file)
+
+
+def debug_callback(ctx: typer.Context, value: bool) -> None:
+    """Enable debug output."""
+    if value:
+        config = get_config()
+        setup_logger(debug=True, log_file=config.log_file)
+
+
+@app.callback()
+def main_callback(
+    ctx: typer.Context,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        callback=verbose_callback,
+        is_eager=True,
+        help="Enable verbose output.",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        callback=debug_callback,
+        is_eager=True,
+        help="Enable debug output with detailed logging.",
+    ),
+) -> None:
+    """Fastpy CLI - Create production-ready FastAPI projects."""
+    pass
 
 
 def is_fastpy_project() -> bool:
@@ -36,20 +160,28 @@ def proxy_to_project_cli(args: list[str]) -> int:
     """Proxy command to project's cli.py."""
     cli_py = Path.cwd() / "cli.py"
 
-    # Check for virtual environment
-    venv_python = Path.cwd() / "venv" / "bin" / "python"
+    # Check for virtual environment (cross-platform)
+    if sys.platform == "win32":
+        venv_python = Path.cwd() / "venv" / "Scripts" / "python.exe"
+    else:
+        venv_python = Path.cwd() / "venv" / "bin" / "python"
+
     if venv_python.exists():
         python_cmd = str(venv_python)
     else:
         python_cmd = sys.executable
 
     cmd = [python_cmd, str(cli_py)] + args
+    log_debug(f"Proxying to project CLI: {cmd}")
     result = subprocess.run(cmd)
     return result.returncode
 
 
-def run_command(cmd: list, cwd: Optional[Path] = None, capture: bool = False) -> subprocess.CompletedProcess:
+def run_command(
+    cmd: list, cwd: Optional[Path] = None, capture: bool = False
+) -> subprocess.CompletedProcess:
     """Run a shell command."""
+    log_debug(f"Running command: {cmd}")
     return subprocess.run(
         cmd,
         cwd=cwd,
@@ -80,7 +212,6 @@ def remove_git_history(project_path: Path) -> None:
     """Remove .git directory to start fresh."""
     git_dir = project_path / ".git"
     if git_dir.exists():
-        import shutil
         shutil.rmtree(git_dir)
 
 
@@ -98,11 +229,22 @@ def init_git_repo(project_path: Path) -> None:
 @app.command()
 def new(
     project_name: str = typer.Argument(..., help="Name of the project to create"),
-    no_git: bool = typer.Option(False, "--no-git", help="Don't initialize a git repository"),
-    no_setup: bool = typer.Option(False, "--no-setup", help="Don't run the interactive setup"),
+    no_git: bool = typer.Option(
+        False, "--no-git", help="Don't initialize a git repository"
+    ),
+    no_setup: bool = typer.Option(
+        False, "--no-setup", help="Don't run the interactive setup"
+    ),
     branch: str = typer.Option("main", "--branch", "-b", help="Branch to clone from"),
 ) -> None:
-    """Create a new Fastpy project."""
+    """Create a new Fastpy project.
+
+    Example:
+        fastpy new my-api
+        fastpy new my-api --no-setup
+        fastpy new my-api --branch dev
+    """
+    log_info(f"Creating new project: {project_name}")
 
     project_path = Path.cwd() / project_name
 
@@ -113,14 +255,18 @@ def new(
 
     # Check git is installed
     if not check_git_installed():
-        console.print("[red]Error:[/red] Git is not installed. Please install git first.")
+        console.print(
+            "[red]Error:[/red] Git is not installed. Please install git first."
+        )
         raise typer.Exit(1)
 
     console.print()
-    console.print(Panel.fit(
-        f"[bold blue]Creating new Fastpy project:[/bold blue] [green]{project_name}[/green]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold blue]Creating new Fastpy project:[/bold blue] [green]{project_name}[/green]",
+            border_style="blue",
+        )
+    )
     console.print()
 
     # Clone repository
@@ -132,6 +278,7 @@ def new(
         task = progress.add_task("Cloning Fastpy template...", total=None)
 
         if not clone_repository(project_name, branch):
+            log_error("Failed to clone repository")
             console.print("[red]Error:[/red] Failed to clone repository.")
             raise typer.Exit(1)
 
@@ -154,7 +301,9 @@ def new(
 
     if no_setup:
         console.print("  2. [cyan]python3 -m venv venv[/cyan]")
-        console.print("  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)")
+        console.print(
+            "  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)"
+        )
         console.print("  4. [cyan]pip install -r requirements.txt[/cyan]")
         console.print("  5. [cyan]cp .env.example .env[/cyan]")
         console.print("  6. [cyan]python cli.py serve[/cyan]")
@@ -167,17 +316,30 @@ def new(
 
     # Ask to run setup
     if not no_setup:
-        run_setup = typer.confirm("Would you like to run the interactive setup now?", default=True)
+        run_setup = typer.confirm(
+            "Would you like to run the interactive setup now?", default=True
+        )
         if run_setup:
             os.chdir(project_path)
             console.print()
-            subprocess.run(["bash", "setup.sh"])
+            if sys.platform == "win32":
+                # On Windows, try Git Bash, WSL, or show manual instructions
+                git_bash = (
+                    Path(os.environ.get("PROGRAMFILES", "")) / "Git" / "bin" / "bash.exe"
+                )
+                if git_bash.exists():
+                    subprocess.run([str(git_bash), "setup.sh"])
+                else:
+                    console.print("[yellow]Note:[/yellow] setup.sh requires bash.")
+                    console.print("Run manually with Git Bash or WSL:")
+                    console.print("  [cyan]bash setup.sh[/cyan]")
+            else:
+                subprocess.run(["bash", "setup.sh"])
 
 
 @app.command()
 def version() -> None:
     """Show the Fastpy CLI version."""
-    from fastpy_cli import __version__
     console.print(f"Fastpy CLI v{__version__}")
 
 
@@ -185,6 +347,7 @@ def version() -> None:
 def docs() -> None:
     """Open Fastpy documentation in browser."""
     import webbrowser
+
     webbrowser.open(DOCS_URL)
     console.print(f"[green]✓[/green] Opening documentation: {DOCS_URL}")
 
@@ -200,15 +363,23 @@ def upgrade() -> None:
     if result.returncode == 0:
         console.print("[green]✓[/green] Fastpy CLI upgraded successfully!")
     else:
-        console.print("[red]Error:[/red] Failed to upgrade. Try: pip install --upgrade fastpy-cli")
+        console.print(
+            "[red]Error:[/red] Failed to upgrade. Try: pip install --upgrade fastpy-cli"
+        )
 
 
 @app.command()
 def ai(
     prompt: str = typer.Argument(..., help="Description of resources to generate"),
-    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="AI provider: anthropic, openai, ollama"),
-    execute: bool = typer.Option(False, "--execute", "-e", help="Execute commands automatically"),
-    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show commands without executing"),
+    provider: Optional[str] = typer.Option(
+        None, "--provider", "-p", help="AI provider: anthropic, openai, ollama"
+    ),
+    execute: bool = typer.Option(
+        False, "--execute", "-e", help="Execute commands automatically"
+    ),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", "-d", help="Show commands without executing"
+    ),
 ) -> None:
     """Generate resources using AI.
 
@@ -219,11 +390,15 @@ def ai(
     """
     from fastpy_cli.ai import get_provider, parse_ai_response
 
+    log_info(f"AI generation with prompt: {prompt}")
+
     console.print()
-    console.print(Panel.fit(
-        f"[bold blue]AI Resource Generator[/bold blue]",
-        border_style="blue",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold blue]AI Resource Generator[/bold blue]",
+            border_style="blue",
+        )
+    )
     console.print()
     console.print(f"[dim]Prompt:[/dim] {prompt}")
     console.print()
@@ -270,30 +445,77 @@ def ai(
             command = cmd.get("command", "")
             if command:
                 console.print(f"[bold]Running:[/bold] {command}")
-                result = subprocess.run(command, shell=True)
-                if result.returncode != 0:
-                    console.print(f"[red]Command failed with exit code {result.returncode}[/red]")
-                    if not typer.confirm("Continue with remaining commands?", default=True):
+
+                # Validate command before execution
+                is_valid, error = validate_command(command)
+                if not is_valid:
+                    console.print(f"[red]Skipping unsafe command:[/red] {error}")
+                    continue
+
+                try:
+                    # Use safe execution (no shell=True)
+                    result = safe_execute_command(command, allow_unsafe=False)
+                    if result.returncode != 0:
+                        console.print(
+                            f"[red]Command failed with exit code {result.returncode}[/red]"
+                        )
+                        if not typer.confirm(
+                            "Continue with remaining commands?", default=True
+                        ):
+                            break
+                except ValueError as e:
+                    console.print(f"[red]Error:[/red] {e}")
+                    if not typer.confirm(
+                        "Continue with remaining commands?", default=True
+                    ):
                         break
+
                 console.print()
 
         console.print("[green]✓[/green] Done!")
     else:
-        console.print("[dim]Commands not executed. Use --execute to run automatically.[/dim]")
+        console.print(
+            "[dim]Commands not executed. Use --execute to run automatically.[/dim]"
+        )
 
 
 @app.command()
-def config() -> None:
-    """Show AI configuration."""
-    import os
+def config(
+    init: bool = typer.Option(False, "--init", help="Initialize config file"),
+    show_path: bool = typer.Option(
+        False, "--path", help="Show config file path"
+    ),
+) -> None:
+    """Show or initialize AI configuration.
+
+    Examples:
+        fastpy config           # Show current config
+        fastpy config --init    # Create config file
+        fastpy config --path    # Show config file path
+    """
+    if show_path:
+        console.print(f"Config file: {CONFIG_FILE}")
+        return
+
+    if init:
+        path = init_config_file()
+        console.print(f"[green]✓[/green] Config file created: {path}")
+        console.print("[dim]Edit this file to customize your settings.[/dim]")
+        return
+
+    cfg = get_config()
 
     console.print()
-    console.print("[bold]AI Configuration[/bold]")
+    console.print("[bold]Fastpy Configuration[/bold]")
     console.print()
 
-    provider = os.environ.get("FASTPY_AI_PROVIDER", "anthropic")
-    console.print(f"  Provider: [cyan]{provider}[/cyan]")
+    # AI settings
+    console.print("[bold cyan]AI Settings[/bold cyan]")
+    console.print(f"  Provider: [green]{cfg.ai_provider}[/green]")
+    console.print(f"  Timeout: {cfg.ai_timeout}s")
+    console.print(f"  Max Retries: {cfg.ai_max_retries}")
 
+    provider = cfg.ai_provider
     if provider == "anthropic":
         key = os.environ.get("ANTHROPIC_API_KEY", "")
         status = "[green]Set[/green]" if key else "[red]Not set[/red]"
@@ -303,25 +525,504 @@ def config() -> None:
         status = "[green]Set[/green]" if key else "[red]Not set[/red]"
         console.print(f"  OPENAI_API_KEY: {status}")
     elif provider == "ollama":
-        model = os.environ.get("OLLAMA_MODEL", "llama3.2")
-        host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-        console.print(f"  OLLAMA_MODEL: [cyan]{model}[/cyan]")
-        console.print(f"  OLLAMA_HOST: [cyan]{host}[/cyan]")
+        console.print(f"  Model: {cfg.get('ai', 'ollama_model', 'llama3.2')}")
+        console.print(f"  Host: {cfg.get('ai', 'ollama_host', 'http://localhost:11434')}")
 
     console.print()
-    console.print("[dim]Set provider with: export FASTPY_AI_PROVIDER=anthropic|openai|ollama[/dim]")
+    console.print("[bold cyan]Default Settings[/bold cyan]")
+    console.print(f"  Git: {cfg.default_git}")
+    console.print(f"  Setup: {cfg.default_setup}")
+    console.print(f"  Branch: {cfg.default_branch}")
+
+    console.print()
+    console.print(f"[dim]Config file: {CONFIG_FILE}[/dim]")
+    if not CONFIG_FILE.exists():
+        console.print("[dim]Run 'fastpy config --init' to create config file[/dim]")
+
+
+@app.command()
+def doctor() -> None:
+    """Diagnose and fix common issues.
+
+    Checks your environment for:
+    - Python version
+    - Required tools (git, pip)
+    - Configuration status
+    - AI provider setup
+    """
+    console.print()
+    console.print(
+        Panel.fit(
+            "[bold blue]Fastpy Doctor[/bold blue]",
+            border_style="blue",
+        )
+    )
+    console.print()
+
+    issues = []
+    warnings = []
+
+    # Python version check
+    py_version = sys.version_info
+    py_status = (
+        "[green]✓[/green]"
+        if py_version >= (3, 9)
+        else "[red]✗[/red]"
+    )
+    console.print(
+        f"{py_status} Python {py_version.major}.{py_version.minor}.{py_version.micro}"
+    )
+    if py_version < (3, 9):
+        issues.append("Python 3.9 or higher is required")
+
+    # Git check
+    git_installed = check_git_installed()
+    git_status = "[green]✓[/green]" if git_installed else "[red]✗[/red]"
+    console.print(f"{git_status} Git installed")
+    if not git_installed:
+        issues.append("Git is not installed. Install from https://git-scm.com")
+
+    # Config file check
+    config_exists = CONFIG_FILE.exists()
+    config_status = "[green]✓[/green]" if config_exists else "[yellow]○[/yellow]"
+    console.print(f"{config_status} Config file {'exists' if config_exists else 'not found (optional)'}")
+    if not config_exists:
+        warnings.append("No config file found. Run 'fastpy config --init' to create one")
+
+    # AI Provider checks
+    console.print()
+    console.print("[bold]AI Providers:[/bold]")
+
+    # Anthropic
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    anthropic_status = "[green]✓[/green]" if anthropic_key else "[yellow]○[/yellow]"
+    console.print(f"  {anthropic_status} Anthropic (Claude)")
+    if not anthropic_key:
+        warnings.append("ANTHROPIC_API_KEY not set")
+
+    # OpenAI
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    openai_status = "[green]✓[/green]" if openai_key else "[yellow]○[/yellow]"
+    console.print(f"  {openai_status} OpenAI (GPT)")
+    if not openai_key:
+        warnings.append("OPENAI_API_KEY not set")
+
+    # Ollama
+    ollama_running = False
+    try:
+        import httpx
+        response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
+        ollama_running = response.status_code == 200
+    except Exception:
+        pass
+    ollama_status = "[green]✓[/green]" if ollama_running else "[yellow]○[/yellow]"
+    console.print(f"  {ollama_status} Ollama (Local)")
+    if not ollama_running:
+        warnings.append("Ollama not running. Start with 'ollama serve'")
+
+    # Project check (if in a project)
+    console.print()
+    console.print("[bold]Project Status:[/bold]")
+    if is_fastpy_project():
+        console.print("  [green]✓[/green] Inside a Fastpy project")
+
+        # Check venv
+        venv_path = Path.cwd() / "venv"
+        venv_status = "[green]✓[/green]" if venv_path.exists() else "[red]✗[/red]"
+        console.print(f"  {venv_status} Virtual environment")
+        if not venv_path.exists():
+            issues.append("Virtual environment not found. Run: python -m venv venv")
+
+        # Check .env
+        env_path = Path.cwd() / ".env"
+        env_status = "[green]✓[/green]" if env_path.exists() else "[red]✗[/red]"
+        console.print(f"  {env_status} .env file")
+        if not env_path.exists():
+            issues.append(".env file not found. Run: cp .env.example .env")
+    else:
+        console.print("  [dim]Not inside a Fastpy project[/dim]")
+
+    # Summary
+    console.print()
+    if issues:
+        console.print("[bold red]Issues found:[/bold red]")
+        for issue in issues:
+            console.print(f"  [red]•[/red] {issue}")
+    if warnings:
+        console.print("[bold yellow]Warnings:[/bold yellow]")
+        for warning in warnings:
+            console.print(f"  [yellow]•[/yellow] {warning}")
+
+    if not issues and not warnings:
+        console.print("[bold green]All checks passed![/bold green]")
+    elif not issues:
+        console.print()
+        console.print("[green]No critical issues found.[/green]")
+
+
+@app.command("init")
+def init_command(
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Overwrite existing config"
+    ),
+) -> None:
+    """Initialize Fastpy configuration.
+
+    Creates a config file at ~/.fastpy/config.toml with default settings.
+
+    Examples:
+        fastpy init
+        fastpy init --force
+    """
+    if CONFIG_FILE.exists() and not force:
+        console.print(f"[yellow]Config file already exists:[/yellow] {CONFIG_FILE}")
+        if typer.confirm("Overwrite existing config?", default=False):
+            pass
+        else:
+            console.print("Aborted.")
+            raise typer.Exit(0)
+
+    path = init_config_file()
+    console.print(f"[green]✓[/green] Config initialized: {path}")
+    console.print()
+    console.print("[bold]Next steps:[/bold]")
+    console.print(f"  1. Edit [cyan]{path}[/cyan] to customize settings")
+    console.print("  2. Set your API key:")
+    console.print("     [cyan]export ANTHROPIC_API_KEY=your-key[/cyan]")
+    console.print("  3. Create a new project:")
+    console.print("     [cyan]fastpy new my-api[/cyan]")
+
+
+@app.command("libs")
+def libs_command(
+    lib_name: Optional[str] = typer.Argument(
+        None, help="Name of lib to install (http, mail, cache, storage, queue, events, notifications, hash, crypt)"
+    ),
+    list_libs: bool = typer.Option(
+        False, "--list", "-l", help="List all available libs"
+    ),
+    all_libs: bool = typer.Option(
+        False, "--all", "-a", help="Install all libs"
+    ),
+    show_usage: bool = typer.Option(
+        False, "--usage", "-u", help="Show usage examples for a lib"
+    ),
+) -> None:
+    """Install and manage Fastpy libs (Laravel-style abstractions).
+
+    Fastpy libs provide Laravel-style facades for common tasks like HTTP requests,
+    email sending, caching, file storage, job queues, and more.
+
+    Examples:
+        fastpy libs --list                # List available libs
+        fastpy libs http                  # Show info about Http lib
+        fastpy libs http --usage          # Show usage examples
+        fastpy libs --all                 # Show all libs info
+    """
+    console.print()
+
+    # List all libs
+    if list_libs or (lib_name is None and not all_libs):
+        console.print(
+            Panel.fit(
+                "[bold blue]Fastpy Libs[/bold blue]\n"
+                "[dim]Laravel-style abstractions for FastAPI[/dim]",
+                border_style="blue",
+            )
+        )
+        console.print()
+
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Lib", style="green")
+        table.add_column("Facade", style="yellow")
+        table.add_column("Description")
+        table.add_column("Dependencies", style="dim")
+
+        for key, lib in AVAILABLE_LIBS.items():
+            deps = ", ".join(lib["dependencies"]) if lib["dependencies"] else "-"
+            table.add_row(key, lib["name"], lib["description"], deps)
+
+        console.print(table)
+        console.print()
+        console.print("[bold]Usage:[/bold]")
+        console.print("  [cyan]from fastpy_cli.libs import Http, Mail, Cache, Storage, Queue, Event, Notify, Hash, Crypt[/cyan]")
+        console.print()
+        console.print("[dim]Run 'fastpy libs <name> --usage' for detailed examples[/dim]")
+        return
+
+    # Show all libs info
+    if all_libs:
+        for key, lib in AVAILABLE_LIBS.items():
+            _show_lib_info(key, lib, show_usage)
+            console.print()
+        return
+
+    # Show specific lib info
+    if lib_name:
+        lib_name = lib_name.lower()
+        if lib_name not in AVAILABLE_LIBS:
+            console.print(f"[red]Error:[/red] Unknown lib '{lib_name}'")
+            console.print(f"[dim]Available libs: {', '.join(AVAILABLE_LIBS.keys())}[/dim]")
+            raise typer.Exit(1)
+
+        _show_lib_info(lib_name, AVAILABLE_LIBS[lib_name], show_usage)
+
+
+def _show_lib_info(key: str, lib: dict, show_usage: bool = False) -> None:
+    """Show information about a specific lib."""
+    console.print(
+        Panel.fit(
+            f"[bold blue]{lib['name']}[/bold blue] - {lib['description']}",
+            border_style="blue",
+        )
+    )
+
+    # Dependencies
+    if lib["dependencies"]:
+        console.print()
+        console.print("[bold]Dependencies:[/bold]")
+        for dep in lib["dependencies"]:
+            console.print(f"  pip install {dep}")
+
+    # Import
+    console.print()
+    console.print("[bold]Import:[/bold]")
+    console.print(f"  [cyan]from fastpy_cli.libs import {lib['name']}[/cyan]")
+
+    # Usage examples
+    if show_usage:
+        console.print()
+        console.print("[bold]Usage Examples:[/bold]")
+        _show_lib_usage(key)
+
+
+def _show_lib_usage(lib_name: str) -> None:
+    """Show usage examples for a lib."""
+    examples = {
+        "http": '''
+  # GET request
+  response = Http.get('https://api.example.com/users')
+  data = response.json()
+
+  # POST with JSON
+  response = Http.post('https://api.example.com/users', json={'name': 'John'})
+
+  # With authentication
+  response = Http.with_token('your-token').get('https://api.example.com/me')
+
+  # With headers
+  response = Http.with_headers({'X-Custom': 'value'}).get(url)
+
+  # Testing (fake responses)
+  Http.fake({'https://api.example.com/*': {'status': 200, 'json': {'ok': True}}})
+  response = Http.get('https://api.example.com/test')
+  Http.assert_sent('https://api.example.com/test')
+''',
+        "mail": '''
+  # Send email with template
+  Mail.to('user@example.com') \\
+      .subject('Welcome!') \\
+      .send('welcome', {'name': 'John'})
+
+  # Send to multiple recipients
+  Mail.to(['user1@example.com', 'user2@example.com']) \\
+      .cc('manager@example.com') \\
+      .subject('Team Update') \\
+      .send('update', {'message': 'Hello team!'})
+
+  # Send raw HTML
+  Mail.to('user@example.com') \\
+      .subject('Hello') \\
+      .html('<h1>Hello World</h1>') \\
+      .send()
+
+  # Use specific driver
+  Mail.driver('sendgrid').to('user@example.com').send('template', data)
+''',
+        "cache": '''
+  # Store value
+  Cache.put('key', 'value', ttl=3600)  # 1 hour
+
+  # Get value
+  value = Cache.get('key', default='fallback')
+
+  # Remember (get or compute)
+  users = Cache.remember('users', lambda: fetch_users(), ttl=600)
+
+  # Delete
+  Cache.forget('key')
+
+  # Cache tags
+  Cache.tags(['users', 'active']).put('user:1', user_data)
+  Cache.tags(['users']).flush()
+
+  # Use specific driver
+  Cache.store('redis').put('key', 'value')
+''',
+        "storage": '''
+  # Store file
+  Storage.put('avatars/user.jpg', file_content)
+
+  # Get file
+  content = Storage.get('avatars/user.jpg')
+
+  # Get URL
+  url = Storage.url('avatars/user.jpg')
+
+  # Check existence
+  if Storage.exists('avatars/user.jpg'):
+      print('File exists')
+
+  # Delete file
+  Storage.delete('avatars/user.jpg')
+
+  # Use specific disk
+  Storage.disk('s3').put('backups/data.zip', content)
+  url = Storage.disk('s3').url('backups/data.zip')
+''',
+        "queue": '''
+  # Define a job
+  class SendEmailJob(Job):
+      def __init__(self, user_id: int):
+          self.user_id = user_id
+
+      def handle(self):
+          user = get_user(self.user_id)
+          send_email(user.email, 'Welcome!')
+
+  # Push job to queue
+  Queue.push(SendEmailJob(user_id=1))
+
+  # Delay job
+  Queue.later(60, SendEmailJob(user_id=1))  # 60 seconds
+
+  # Chain jobs
+  Queue.chain([
+      ProcessOrderJob(order_id=1),
+      SendConfirmationJob(order_id=1),
+      UpdateInventoryJob(order_id=1),
+  ])
+
+  # Use specific queue
+  Queue.on('emails').push(SendEmailJob(user_id=1))
+''',
+        "events": '''
+  # Listen to events
+  Event.listen('user.registered', lambda data: send_welcome_email(data['user']))
+
+  # Dispatch event
+  Event.dispatch('user.registered', {'user': user})
+
+  # Wildcard listeners
+  Event.listen('user.*', lambda data: log_user_activity(data))
+
+  # Event subscriber class
+  class UserSubscriber:
+      def subscribe(self, events):
+          events.listen('user.registered', self.on_registered)
+          events.listen('user.deleted', self.on_deleted)
+
+      def on_registered(self, data):
+          print(f"User registered: {data['user'].id}")
+
+  Event.subscribe(UserSubscriber())
+''',
+        "notifications": '''
+  # Define notification
+  class OrderShippedNotification(Notification):
+      def __init__(self, order):
+          self.order = order
+
+      def via(self, notifiable):
+          return ['mail', 'database', 'slack']
+
+      def to_mail(self, notifiable):
+          return {
+              'subject': 'Your order has shipped!',
+              'template': 'order_shipped',
+              'data': {'order': self.order}
+          }
+
+      def to_slack(self, notifiable):
+          return {'text': f'Order #{self.order.id} shipped!'}
+
+  # Send notification
+  Notify.send(user, OrderShippedNotification(order))
+
+  # On-demand (anonymous) notification
+  Notify.route('mail', 'guest@example.com') \\
+      .route('slack', '#orders') \\
+      .notify(OrderShippedNotification(order))
+''',
+        "hash": '''
+  # Hash a password
+  hashed = Hash.make('password')
+
+  # Verify password
+  if Hash.check('password', hashed):
+      print('Password is valid!')
+
+  # Check if rehash needed
+  if Hash.needs_rehash(hashed):
+      new_hash = Hash.make('password')
+
+  # Use specific algorithm
+  hashed = Hash.driver('argon2').make('password')
+
+  # Configure rounds
+  Hash.configure('bcrypt', {'rounds': 14})
+''',
+        "crypt": '''
+  # Generate encryption key (do once, save to .env)
+  key = Crypt.generate_key()
+  # Add to .env: APP_KEY=<key>
+
+  # Set key (or use APP_KEY env var)
+  Crypt.set_key(key)
+
+  # Encrypt data
+  encrypted = Crypt.encrypt('secret data')
+
+  # Encrypt complex data (auto JSON serialized)
+  encrypted = Crypt.encrypt({'user_id': 123, 'token': 'abc'})
+
+  # Decrypt
+  data = Crypt.decrypt(encrypted)
+
+  # Use specific driver
+  encrypted = Crypt.driver('aes').encrypt('secret')
+''',
+    }
+
+    if lib_name in examples:
+        console.print(examples[lib_name])
+    else:
+        console.print("  [dim]No examples available[/dim]")
 
 
 def main() -> None:
     """Entry point for the CLI."""
+    # Initialize logger with config
+    config = get_config()
+    setup_logger(log_file=config.log_file)
+
     # Check if we should proxy to project cli.py
     if len(sys.argv) > 1:
         command = sys.argv[1]
 
-        # If it's not a fastpy CLI command and we're in a project, proxy it
-        if command not in FASTPY_COMMANDS and is_fastpy_project():
-            exit_code = proxy_to_project_cli(sys.argv[1:])
-            sys.exit(exit_code)
+        # Skip flags when determining command
+        if command.startswith("-"):
+            # Check for verbose/debug flags early
+            if "--verbose" in sys.argv:
+                setup_logger(verbose=True, log_file=config.log_file)
+            if "--debug" in sys.argv:
+                setup_logger(debug=True, log_file=config.log_file)
+        else:
+            # If it's not a fastpy CLI command and we're in a project, proxy it
+            if command not in FASTPY_COMMANDS and is_fastpy_project():
+                log_debug(f"Proxying command '{command}' to project CLI")
+                exit_code = proxy_to_project_cli(sys.argv[1:])
+                sys.exit(exit_code)
 
     app()
 
