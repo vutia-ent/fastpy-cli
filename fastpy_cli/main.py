@@ -37,10 +37,16 @@ FASTPY_COMMANDS = {
     "docs",
     "upgrade",
     "ai",
+    "ai:config",
     "config",
     "doctor",
     "init",
     "libs",
+    "setup",
+    "setup:env",
+    "setup:db",
+    "setup:secret",
+    "setup:hooks",
     "--help",
     "-h",
     "--version",
@@ -232,16 +238,12 @@ def new(
     no_git: bool = typer.Option(
         False, "--no-git", help="Don't initialize a git repository"
     ),
-    no_setup: bool = typer.Option(
-        False, "--no-setup", help="Don't run the interactive setup"
-    ),
     branch: str = typer.Option("main", "--branch", "-b", help="Branch to clone from"),
 ) -> None:
     """Create a new Fastpy project.
 
     Example:
         fastpy new my-api
-        fastpy new my-api --no-setup
         fastpy new my-api --branch dev
     """
     log_info(f"Creating new project: {project_name}")
@@ -298,43 +300,17 @@ def new(
     # Show next steps
     console.print("[bold]Next steps:[/bold]")
     console.print(f"  1. [cyan]cd {project_name}[/cyan]")
-
-    if no_setup:
-        console.print("  2. [cyan]python3 -m venv venv[/cyan]")
-        console.print(
-            "  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)"
-        )
-        console.print("  4. [cyan]pip install -r requirements.txt[/cyan]")
-        console.print("  5. [cyan]cp .env.example .env[/cyan]")
-        console.print("  6. [cyan]python cli.py serve[/cyan]")
-    else:
-        console.print("  2. [cyan]./setup.sh[/cyan]  (interactive setup)")
+    console.print("  2. [cyan]python3 -m venv venv[/cyan]")
+    console.print(
+        "  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)"
+    )
+    console.print("  4. [cyan]pip install -r requirements.txt[/cyan]")
+    console.print("  5. [cyan]fastpy setup[/cyan]  (interactive setup)")
+    console.print("  6. [cyan]fastpy serve[/cyan]")
 
     console.print()
     console.print(f"[dim]Documentation: {DOCS_URL}[/dim]")
     console.print()
-
-    # Ask to run setup
-    if not no_setup:
-        run_setup = typer.confirm(
-            "Would you like to run the interactive setup now?", default=True
-        )
-        if run_setup:
-            os.chdir(project_path)
-            console.print()
-            if sys.platform == "win32":
-                # On Windows, try Git Bash, WSL, or show manual instructions
-                git_bash = (
-                    Path(os.environ.get("PROGRAMFILES", "")) / "Git" / "bin" / "bash.exe"
-                )
-                if git_bash.exists():
-                    subprocess.run([str(git_bash), "setup.sh"])
-                else:
-                    console.print("[yellow]Note:[/yellow] setup.sh requires bash.")
-                    console.print("Run manually with Git Bash or WSL:")
-                    console.print("  [cyan]bash setup.sh[/cyan]")
-            else:
-                subprocess.run(["bash", "setup.sh"])
 
 
 @app.command()
@@ -538,6 +514,235 @@ def config(
     console.print(f"[dim]Config file: {CONFIG_FILE}[/dim]")
     if not CONFIG_FILE.exists():
         console.print("[dim]Run 'fastpy config --init' to create config file[/dim]")
+
+
+@app.command("ai:config")
+def ai_config_command(
+    provider: Optional[str] = typer.Option(
+        None, "--provider", "-p", help="Set AI provider: anthropic, openai, ollama"
+    ),
+    test: bool = typer.Option(
+        False, "--test", "-t", help="Test the AI connection"
+    ),
+) -> None:
+    """Configure AI provider for code generation.
+
+    Set up your preferred AI provider for the 'fastpy ai' command.
+
+    Examples:
+        fastpy ai:config                      # Interactive setup
+        fastpy ai:config -p anthropic         # Set provider
+        fastpy ai:config -p ollama            # Use local Ollama
+        fastpy ai:config --test               # Test connection
+
+    Supported Providers:
+        anthropic  - Claude (requires ANTHROPIC_API_KEY)
+        openai     - GPT-4 (requires OPENAI_API_KEY)
+        ollama     - Local LLMs (free, no API key needed)
+    """
+    from rich.prompt import Prompt
+    import requests
+
+    console.print()
+    console.print(Panel.fit("[bold blue]AI Configuration[/bold blue]", border_style="blue"))
+    console.print()
+
+    cfg = get_config()
+
+    # If provider specified, update config
+    if provider:
+        provider = provider.lower()
+        if provider not in ["anthropic", "openai", "ollama"]:
+            console.print(f"[red]Error:[/red] Unknown provider: {provider}")
+            console.print("[dim]Available: anthropic, openai, ollama[/dim]")
+            raise typer.Exit(1)
+
+        # Update config file
+        if not CONFIG_FILE.exists():
+            init_config_file()
+
+        import toml
+        config_data = toml.load(CONFIG_FILE)
+        if "ai" not in config_data:
+            config_data["ai"] = {}
+        config_data["ai"]["provider"] = provider
+
+        with open(CONFIG_FILE, "w") as f:
+            toml.dump(config_data, f)
+
+        console.print(f"[green]✓[/green] AI provider set to: [cyan]{provider}[/cyan]")
+
+        # Show next steps
+        if provider == "anthropic":
+            key = os.environ.get("ANTHROPIC_API_KEY")
+            if not key:
+                console.print()
+                console.print("[yellow]Set your API key:[/yellow]")
+                console.print("  export ANTHROPIC_API_KEY=your-key-here")
+                console.print()
+                console.print("[dim]Get your key at: https://console.anthropic.com[/dim]")
+        elif provider == "openai":
+            key = os.environ.get("OPENAI_API_KEY")
+            if not key:
+                console.print()
+                console.print("[yellow]Set your API key:[/yellow]")
+                console.print("  export OPENAI_API_KEY=your-key-here")
+                console.print()
+                console.print("[dim]Get your key at: https://platform.openai.com[/dim]")
+        elif provider == "ollama":
+            console.print()
+            console.print("[dim]Ollama runs locally - no API key needed[/dim]")
+            console.print("[dim]Start with: ollama serve[/dim]")
+            console.print("[dim]Download at: https://ollama.ai[/dim]")
+
+        raise typer.Exit(0)
+
+    # Test connection
+    if test:
+        current_provider = cfg.ai_provider
+        console.print(f"Testing [cyan]{current_provider}[/cyan] connection...")
+        console.print()
+
+        if current_provider == "anthropic":
+            key = os.environ.get("ANTHROPIC_API_KEY")
+            if not key:
+                console.print("[red]✗[/red] ANTHROPIC_API_KEY not set")
+                console.print("[dim]Set with: export ANTHROPIC_API_KEY=your-key[/dim]")
+                raise typer.Exit(1)
+            try:
+                response = requests.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": "claude-sonnet-4-20250514",
+                        "max_tokens": 10,
+                        "messages": [{"role": "user", "content": "Hi"}],
+                    },
+                    timeout=10,
+                )
+                if response.status_code == 200:
+                    console.print("[green]✓[/green] Anthropic connection successful!")
+                else:
+                    console.print(f"[red]✗[/red] API error: {response.status_code}")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Connection failed: {e}")
+
+        elif current_provider == "openai":
+            key = os.environ.get("OPENAI_API_KEY")
+            if not key:
+                console.print("[red]✗[/red] OPENAI_API_KEY not set")
+                console.print("[dim]Set with: export OPENAI_API_KEY=your-key[/dim]")
+                raise typer.Exit(1)
+            try:
+                response = requests.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "gpt-4o",
+                        "max_tokens": 10,
+                        "messages": [{"role": "user", "content": "Hi"}],
+                    },
+                    timeout=10,
+                )
+                if response.status_code == 200:
+                    console.print("[green]✓[/green] OpenAI connection successful!")
+                else:
+                    console.print(f"[red]✗[/red] API error: {response.status_code}")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Connection failed: {e}")
+
+        elif current_provider == "ollama":
+            host = cfg.get("ai", "ollama_host", "http://localhost:11434")
+            try:
+                response = requests.get(f"{host}/api/tags", timeout=5)
+                if response.status_code == 200:
+                    models = response.json().get("models", [])
+                    console.print("[green]✓[/green] Ollama is running!")
+                    if models:
+                        console.print(f"  Available models: {', '.join(m['name'] for m in models[:5])}")
+                else:
+                    console.print(f"[red]✗[/red] Ollama error: {response.status_code}")
+            except requests.exceptions.ConnectionError:
+                console.print("[red]✗[/red] Ollama is not running")
+                console.print("[dim]Start with: ollama serve[/dim]")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Connection failed: {e}")
+
+        raise typer.Exit(0)
+
+    # Interactive setup (default)
+    console.print("[bold]Current Configuration[/bold]")
+    console.print()
+
+    # Show current provider
+    current = cfg.ai_provider
+    console.print(f"  Provider: [cyan]{current}[/cyan]")
+
+    # Show API key status
+    providers_status = []
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    openai_key = os.environ.get("OPENAI_API_KEY")
+
+    if anthropic_key:
+        providers_status.append(("anthropic", "[green]✓[/green] API key set"))
+    else:
+        providers_status.append(("anthropic", "[yellow]○[/yellow] API key not set"))
+
+    if openai_key:
+        providers_status.append(("openai", "[green]✓[/green] API key set"))
+    else:
+        providers_status.append(("openai", "[yellow]○[/yellow] API key not set"))
+
+    # Check Ollama
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if response.status_code == 200:
+            providers_status.append(("ollama", "[green]✓[/green] Running locally"))
+        else:
+            providers_status.append(("ollama", "[yellow]○[/yellow] Not running"))
+    except:
+        providers_status.append(("ollama", "[yellow]○[/yellow] Not running"))
+
+    console.print()
+    console.print("[bold]Available Providers[/bold]")
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Provider")
+    table.add_column("Model")
+    table.add_column("Status")
+
+    for name, status in providers_status:
+        model = {
+            "anthropic": "Claude Sonnet",
+            "openai": "GPT-4o",
+            "ollama": "Llama 3.2 (local)",
+        }[name]
+        table.add_row(name, model, status)
+
+    console.print(table)
+
+    console.print()
+    console.print("[bold]Quick Setup[/bold]")
+    console.print()
+    console.print("  # Set provider")
+    console.print("  [cyan]fastpy ai:config -p anthropic[/cyan]")
+    console.print()
+    console.print("  # Set API key (add to ~/.bashrc or ~/.zshrc)")
+    console.print("  [cyan]export ANTHROPIC_API_KEY=your-key-here[/cyan]")
+    console.print()
+    console.print("  # Test connection")
+    console.print("  [cyan]fastpy ai:config --test[/cyan]")
+    console.print()
+    console.print("[dim]Get API keys:[/dim]")
+    console.print("[dim]  Anthropic: https://console.anthropic.com[/dim]")
+    console.print("[dim]  OpenAI: https://platform.openai.com[/dim]")
+    console.print("[dim]  Ollama: https://ollama.ai (free, runs locally)[/dim]")
 
 
 @app.command()
@@ -794,6 +999,149 @@ def _show_lib_info(key: str, lib: dict, show_usage: bool = False) -> None:
         console.print()
         console.print("[bold]Usage Examples:[/bold]")
         _show_lib_usage(key)
+
+
+# ============================================
+# Setup Commands
+# ============================================
+
+
+@app.command("setup")
+def setup_command(
+    skip_db: bool = typer.Option(False, "--skip-db", help="Skip database configuration"),
+    skip_migrations: bool = typer.Option(False, "--skip-migrations", help="Skip running migrations"),
+    skip_admin: bool = typer.Option(False, "--skip-admin", help="Skip admin user creation"),
+    skip_hooks: bool = typer.Option(False, "--skip-hooks", help="Skip pre-commit hooks installation"),
+) -> None:
+    """Complete interactive project setup wizard.
+
+    Run this after creating a new Fastpy project to configure:
+    - Environment variables (.env)
+    - Database connection
+    - Secret key for JWT tokens
+    - Database migrations
+    - Admin user (optional)
+    - Pre-commit hooks (optional)
+
+    Examples:
+        fastpy setup                    # Full interactive setup
+        fastpy setup --skip-db          # Skip database configuration
+        fastpy setup --skip-migrations  # Skip migrations
+    """
+    from fastpy_cli.setup import full_setup
+
+    full_setup(
+        skip_db=skip_db,
+        skip_migrations=skip_migrations,
+        skip_admin=skip_admin,
+        skip_hooks=skip_hooks,
+    )
+
+
+@app.command("setup:env")
+def setup_env_command() -> None:
+    """Initialize .env file from .env.example.
+
+    Creates a copy of .env.example as .env. If .env already exists,
+    you'll be prompted to backup and recreate it.
+
+    Example:
+        fastpy setup:env
+    """
+    from fastpy_cli.setup import setup_env, is_fastpy_project
+
+    if not is_fastpy_project():
+        console.print("[red]Error:[/red] Not inside a Fastpy project.")
+        raise typer.Exit(1)
+
+    setup_env()
+
+
+@app.command("setup:db")
+def setup_db_command(
+    driver: Optional[str] = typer.Option(None, "--driver", "-d", help="Database driver (mysql, postgresql, sqlite)"),
+    host: Optional[str] = typer.Option(None, "--host", "-h", help="Database host"),
+    port: Optional[int] = typer.Option(None, "--port", "-p", help="Database port"),
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Database username"),
+    password: Optional[str] = typer.Option(None, "--password", help="Database password"),
+    database: Optional[str] = typer.Option(None, "--database", "-n", help="Database name"),
+    no_create: bool = typer.Option(False, "--no-create", help="Don't auto-create database"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Non-interactive mode"),
+) -> None:
+    """Configure database connection.
+
+    Interactively configure database connection or provide options
+    for non-interactive setup.
+
+    Supported drivers:
+    - mysql: MySQL/MariaDB (recommended for production)
+    - postgresql: PostgreSQL
+    - sqlite: SQLite (development only)
+
+    Examples:
+        fastpy setup:db                          # Interactive setup
+        fastpy setup:db -d mysql                 # MySQL with defaults
+        fastpy setup:db -d postgresql -n myapp   # PostgreSQL with custom db name
+        fastpy setup:db -d sqlite -n dev         # SQLite for development
+        fastpy setup:db -d mysql -h localhost -u root -n myapp --password secret -y
+    """
+    from fastpy_cli.setup import setup_db, is_fastpy_project
+
+    if not is_fastpy_project():
+        console.print("[red]Error:[/red] Not inside a Fastpy project.")
+        raise typer.Exit(1)
+
+    setup_db(
+        driver=driver,
+        host=host,
+        port=port,
+        username=username,
+        password=password,
+        database=database,
+        create=not no_create,
+        interactive=not yes,
+    )
+
+
+@app.command("setup:secret")
+def setup_secret_command(
+    length: int = typer.Option(64, "--length", "-l", help="Secret key length (default: 64)"),
+) -> None:
+    """Generate a secure secret key for JWT tokens.
+
+    Generates a cryptographically secure random key and saves it
+    to the SECRET_KEY variable in .env.
+
+    Examples:
+        fastpy setup:secret          # Generate 64-character key
+        fastpy setup:secret -l 128   # Generate 128-character key
+    """
+    from fastpy_cli.setup import setup_secret, is_fastpy_project
+
+    if not is_fastpy_project():
+        console.print("[red]Error:[/red] Not inside a Fastpy project.")
+        raise typer.Exit(1)
+
+    setup_secret(length=length)
+
+
+@app.command("setup:hooks")
+def setup_hooks_command() -> None:
+    """Install pre-commit hooks for code quality.
+
+    Installs pre-commit hooks using the .pre-commit-config.yaml file.
+    Requires git repository and pre-commit package to be installed.
+
+    Example:
+        fastpy setup:hooks
+    """
+    from fastpy_cli.setup import setup_hooks, is_fastpy_project
+
+    if not is_fastpy_project():
+        console.print("[red]Error:[/red] Not inside a Fastpy project.")
+        raise typer.Exit(1)
+
+    setup_hooks()
 
 
 def _show_lib_usage(lib_name: str) -> None:
