@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastpy-cli"
-version = "0.6.3"
+version = "0.6.4"
 description = "Create production-ready FastAPI projects with one command"
 readme = "README.md"
 license = {text = "MIT"}
@@ -50,6 +50,7 @@ dependencies = [
     "rich>=13.0.0",
     "httpx>=0.25.0",
     "tomli>=2.0.0;python_version<'3.11'",
+    "toml>=0.10.0",
 ]
 
 [project.urls]

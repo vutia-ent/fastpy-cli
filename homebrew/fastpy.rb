@@ -3,8 +3,8 @@ class Fastpy < Formula
 
   desc "Create production-ready FastAPI projects with one command"
   homepage "https://fastpy.ve.ke"
-  url "https://files.pythonhosted.org/packages/source/f/fastpy-cli/fastpy_cli-0.6.3.tar.gz"
-  sha256 "47edeaaf86ada710439946c60c9e0c40d61a54c2a36b864cf38d27fc90d12305"
+  url "https://files.pythonhosted.org/packages/source/f/fastpy-cli/fastpy_cli-0.6.4.tar.gz"
+  sha256 "2b551d4edc80bb00189acedefc54a359ceb220e3dc744c91cf61242e080e0f23"
   license "MIT"
 
   depends_on "python@3.11"
@@ -77,6 +77,11 @@ class Fastpy < Formula
   resource "typing-extensions" do
     url "https://files.pythonhosted.org/packages/72/94/1a15dd82efb362ac84269196e94cf00f187f7ed21c242792a923cdb1c61f/typing_extensions-4.15.0.tar.gz"
     sha256 "0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466"
+  end
+
+  resource "toml" do
+    url "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz"
+    sha256 "b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"
   end
 
   def install
