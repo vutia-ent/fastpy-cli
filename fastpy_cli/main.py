@@ -304,9 +304,10 @@ def new(
     console.print(
         "  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)"
     )
-    console.print("  4. [cyan]pip install -r requirements.txt[/cyan]")
-    console.print("  5. [cyan]fastpy setup[/cyan]  (interactive setup)")
-    console.print("  6. [cyan]fastpy serve[/cyan]")
+    console.print("  4. [cyan]pip install --upgrade pip[/cyan]")
+    console.print("  5. [cyan]pip install -r requirements.txt[/cyan]")
+    console.print("  6. [cyan]fastpy setup[/cyan]  (interactive setup)")
+    console.print("  7. [cyan]fastpy serve[/cyan]")
 
     console.print()
     console.print(f"[dim]Documentation: {DOCS_URL}[/dim]")
