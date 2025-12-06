@@ -76,6 +76,38 @@ brew install fastpy
 fastpy version
 ```
 
+### Troubleshooting: Command Not Found
+
+If you get `fastpy: command not found` after installing with pip, the Python scripts directory isn't in your PATH.
+
+**macOS:**
+```bash
+# Add Python scripts to PATH
+echo 'export PATH="'$(python3 -m site --user-base)/bin':$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Linux:**
+```bash
+# Add Python scripts to PATH
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Windows (PowerShell):**
+```powershell
+# Find Python scripts path
+python -m site --user-site
+# Add the Scripts folder (replace USERNAME with your username)
+# C:\Users\USERNAME\AppData\Roaming\Python\Python3X\Scripts
+# Add this to your PATH via System Properties > Environment Variables
+```
+
+**Alternative:** Use pipx (automatically handles PATH):
+```bash
+pipx install fastpy-cli
+```
+
 ---
 
 ## Quick Start
