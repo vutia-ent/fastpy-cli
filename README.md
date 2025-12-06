@@ -133,29 +133,31 @@ pipx install fastpy-cli
 ### One-Command Setup (Recommended)
 
 ```bash
-# Create project with automatic setup
-fastpy new my-api --install
+# Create project with full setup (venv, dependencies, configuration)
+fastpy new my-api
 cd my-api
 source venv/bin/activate
-fastpy setup   # Configure database
 fastpy serve
 ```
 
-### Step-by-Step Setup
+That's it! By default, `fastpy new` creates a fully configured project with:
+- Virtual environment created
+- All dependencies installed
+- Setup wizard run (database, secrets, etc.)
+
+### Manual Setup (Advanced)
 
 ```bash
-# 1. Create a new project
-fastpy new my-api
+# Create project without automatic setup
+fastpy new my-api --no-install
 cd my-api
 
-# 2. Install dependencies (creates venv + installs packages + runs setup)
+# Install dependencies manually
 fastpy install
 
-# 3. Activate the virtual environment
+# Activate and run
 source venv/bin/activate  # macOS/Linux
 # or: venv\Scripts\activate  # Windows
-
-# 4. Start the development server
 fastpy serve
 ```
 
@@ -181,8 +183,8 @@ fastpy serve
 
 | Command | Description |
 |---------|-------------|
-| `fastpy new <name>` | Create a new Fastpy project |
-| `fastpy new <name> --install` | Create project + auto-setup venv and deps |
+| `fastpy new <name>` | Create project with full setup (venv, deps, config) |
+| `fastpy new <name> --no-install` | Create project only (skip automatic setup) |
 | `fastpy install` | Install deps and setup (run inside project) |
 | `fastpy ai <prompt>` | Generate resources using AI |
 | `fastpy libs [name]` | Explore Laravel-style libs |

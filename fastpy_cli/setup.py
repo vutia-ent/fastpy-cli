@@ -178,11 +178,14 @@ def check_database_exists(config: DatabaseConfig) -> bool:
 
     elif config.driver == "mysql":
         cmd = ["mysql", "-h", config.host, "-P", str(config.port), "-u", config.username]
-        if config.password:
-            cmd.append(f"-p{config.password}")
         cmd.extend(["-e", f"USE {config.database}"])
+        env = os.environ.copy()
+        if config.password:
+            # Use environment variable instead of command line for security
+            # (password on command line is visible in process list)
+            env["MYSQL_PWD"] = config.password
         try:
-            result = subprocess.run(cmd, capture_output=True, check=False)
+            result = subprocess.run(cmd, capture_output=True, env=env, check=False)
             return result.returncode == 0
         except Exception:
             return False
@@ -223,11 +226,13 @@ def create_database(config: DatabaseConfig) -> bool:
 
     elif config.driver == "mysql":
         cmd = ["mysql", "-h", config.host, "-P", str(config.port), "-u", config.username]
-        if config.password:
-            cmd.append(f"-p{config.password}")
         cmd.extend(["-e", f"CREATE DATABASE IF NOT EXISTS `{config.database}`"])
+        env = os.environ.copy()
+        if config.password:
+            # Use environment variable instead of command line for security
+            env["MYSQL_PWD"] = config.password
         try:
-            subprocess.run(cmd, check=True, capture_output=True)
+            subprocess.run(cmd, check=True, capture_output=True, env=env)
             console.print(f"[green]✓[/green] Database '{config.database}' created successfully")
             return True
         except subprocess.CalledProcessError:
@@ -426,6 +431,36 @@ def setup_hooks() -> bool:
             return False
 
 
+def get_venv_paths() -> tuple[Optional[Path], Optional[Path]]:
+    """Get venv python and bin paths if they exist."""
+    project_path = Path.cwd()
+    if sys.platform == "win32":
+        venv_python = project_path / "venv" / "Scripts" / "python.exe"
+        venv_bin = project_path / "venv" / "Scripts"
+    else:
+        venv_python = project_path / "venv" / "bin" / "python"
+        venv_bin = project_path / "venv" / "bin"
+
+    if venv_python.exists():
+        return venv_python, venv_bin
+    return None, None
+
+
+def get_venv_env() -> Optional[dict]:
+    """Get environment with venv paths set.
+
+    Returns environment dict with PATH and VIRTUAL_ENV set for venv,
+    or None if no venv exists.
+    """
+    venv_python, venv_bin = get_venv_paths()
+    if venv_bin:
+        env = os.environ.copy()
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+        env["VIRTUAL_ENV"] = str(Path.cwd() / "venv")
+        return env
+    return None
+
+
 def get_venv_command(cmd: str) -> list:
     """Get command path, preferring venv if available."""
     project_path = Path.cwd()
@@ -479,16 +514,38 @@ def run_migrations(auto_generate: bool = True) -> bool:
         show_venv_hint("alembic upgrade head", "Or run: fastpy db:migrate after activation")
         return False
 
+    # Get venv environment to ensure subprocesses use venv Python
+    venv_env = get_venv_env()
+
+    # Load .env variables for database connection
+    env_vars = read_env()
+    if venv_env:
+        venv_env.update(env_vars)
+    else:
+        venv_env = os.environ.copy()
+        venv_env.update(env_vars)
+
     versions_dir = Path("alembic/versions")
     has_migrations = versions_dir.exists() and any(versions_dir.glob("*.py"))
 
     if not has_migrations and auto_generate:
         console.print("[blue]Generating initial migration...[/blue]")
         try:
-            run_command(alembic_cmd + ["revision", "--autogenerate", "-m", "Initial migration"])
+            subprocess.run(
+                alembic_cmd + ["revision", "--autogenerate", "-m", "Initial migration"],
+                env=venv_env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             console.print("[green]✓[/green] Initial migration generated")
         except subprocess.CalledProcessError as e:
-            console.print(f"[red]✗[/red] Failed to generate migration: {e}")
+            console.print(f"[red]✗[/red] Failed to generate migration")
+            if e.stderr:
+                # Show relevant error info
+                error_lines = e.stderr.strip().split("\n")
+                for line in error_lines[-5:]:  # Last 5 lines
+                    console.print(f"  [dim]{line}[/dim]")
             return False
         except FileNotFoundError:
             console.print("[red]✗[/red] Alembic not found")
@@ -497,15 +554,50 @@ def run_migrations(auto_generate: bool = True) -> bool:
 
     console.print("[blue]Running migrations...[/blue]")
     try:
-        run_command(alembic_cmd + ["upgrade", "head"])
+        subprocess.run(
+            alembic_cmd + ["upgrade", "head"],
+            env=venv_env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         console.print("[green]✓[/green] Migrations completed")
         return True
     except subprocess.CalledProcessError as e:
-        console.print(f"[red]✗[/red] Migration failed: {e}")
-        console.print("\n[yellow]Please check:[/yellow]")
-        console.print("  1. Database server is running")
-        console.print("  2. Database credentials in .env are correct")
-        console.print("  3. Database exists")
+        console.print(f"[red]✗[/red] Migration failed")
+        console.print()
+
+        # Parse common errors and provide helpful messages
+        stderr = e.stderr or ""
+        if "Can't locate revision" in stderr:
+            console.print("[yellow]Possible cause:[/yellow] Missing migration files")
+            console.print("  Try: [cyan]fastpy db:migrate --fresh[/cyan]")
+        elif "connection refused" in stderr.lower() or "could not connect" in stderr.lower():
+            console.print("[yellow]Possible cause:[/yellow] Database server not running")
+            env = read_env()
+            driver = env.get("DB_DRIVER", "unknown")
+            if driver == "mysql":
+                console.print("  Try: [cyan]mysql.server start[/cyan] or [cyan]brew services start mysql[/cyan]")
+            elif driver == "postgresql":
+                console.print("  Try: [cyan]brew services start postgresql[/cyan]")
+        elif "access denied" in stderr.lower() or "authentication failed" in stderr.lower():
+            console.print("[yellow]Possible cause:[/yellow] Invalid database credentials")
+            console.print("  Check: [cyan].env[/cyan] file for DATABASE_URL")
+        elif "unknown database" in stderr.lower() or "does not exist" in stderr.lower():
+            console.print("[yellow]Possible cause:[/yellow] Database does not exist")
+            console.print("  Try: [cyan]fastpy setup:db[/cyan] to create it")
+        else:
+            console.print("[yellow]Please check:[/yellow]")
+            console.print("  1. Database server is running")
+            console.print("  2. Database credentials in .env are correct")
+            console.print("  3. Database exists")
+            if stderr:
+                console.print()
+                console.print("[dim]Error details:[/dim]")
+                error_lines = stderr.strip().split("\n")
+                for line in error_lines[-5:]:
+                    console.print(f"  [dim]{line}[/dim]")
+
         return False
     except FileNotFoundError:
         console.print("[red]✗[/red] Alembic not found")
@@ -589,5 +681,8 @@ __all__ = [
     "run_migrations",
     "full_setup",
     "is_fastpy_project",
+    "read_env",
+    "get_venv_env",
+    "get_venv_paths",
     "DatabaseConfig",
 ]

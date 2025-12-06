@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.7] - 2025-12-06
+
+### Changed
+
+- **Install is now the default**: `fastpy new my-api` now creates a fully configured project with venv, dependencies, and setup wizard
+  - Use `--no-install` to skip automatic setup: `fastpy new my-api --no-install`
+  - This makes the quickest path the default - just `fastpy new my-api` and you're ready to go
+
+### Updated
+
+- Shell integration now auto-cd and auto-activate by default (unless `--no-install`)
+- Updated all CLI messages and help text to reflect new default behavior
+- Updated README quick start section
+
+---
+
 ## [1.2.0] - 2025-12-06
 
 ### Added

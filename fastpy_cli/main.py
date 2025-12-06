@@ -48,6 +48,7 @@ FASTPY_COMMANDS = {
     "setup:db",
     "setup:secret",
     "setup:hooks",
+    "shell:install",
     "--help",
     "-h",
     "--version",
@@ -158,9 +159,31 @@ def main_callback(
 
 
 def is_fastpy_project() -> bool:
-    """Check if we're inside a Fastpy project."""
-    cli_py = Path.cwd() / "cli.py"
-    return cli_py.exists()
+    """Check if we're inside a Fastpy project.
+
+    A valid Fastpy project should have:
+    - main.py (FastAPI entry point)
+    - app/ directory (application code)
+    - Either requirements.txt or pyproject.toml (dependencies)
+    - cli.py (project CLI, optional but recommended)
+    """
+    project_path = Path.cwd()
+
+    # Check for core project files
+    has_main = (project_path / "main.py").exists()
+    has_app_dir = (project_path / "app").is_dir()
+    has_deps = (project_path / "requirements.txt").exists() or (project_path / "pyproject.toml").exists()
+    has_cli = (project_path / "cli.py").exists()
+
+    # Core requirements: main.py + app/ + dependencies
+    if has_main and has_app_dir and has_deps:
+        return True
+
+    # Also accept if cli.py exists (legacy detection)
+    if has_cli:
+        return True
+
+    return False
 
 
 def get_venv_paths() -> tuple[Optional[Path], Optional[Path]]:
@@ -269,13 +292,41 @@ def check_git_installed() -> bool:
         return False
 
 
-def clone_repository(project_name: str, branch: str = "main") -> bool:
-    """Clone the Fastpy repository."""
+def clone_repository(project_name: str, branch: str = "main") -> tuple[bool, str]:
+    """Clone the Fastpy repository.
+
+    Returns:
+        Tuple of (success, error_message)
+    """
+    project_path = Path.cwd() / project_name
+
     result = run_command(
         ["git", "clone", "--depth", "1", "-b", branch, REPO_URL, project_name],
         capture=True,
     )
-    return result.returncode == 0
+
+    if result.returncode == 0:
+        return True, ""
+
+    # Clean up partial clone if it exists
+    if project_path.exists():
+        try:
+            shutil.rmtree(project_path)
+        except Exception:
+            pass
+
+    # Parse the error message
+    stderr = result.stderr or ""
+    if "Could not resolve host" in stderr:
+        return False, "Network error: Could not resolve github.com. Check your internet connection."
+    elif "Connection refused" in stderr or "Connection timed out" in stderr:
+        return False, "Network error: Could not connect to GitHub. Check your internet connection."
+    elif f"Remote branch {branch} not found" in stderr:
+        return False, f"Branch '{branch}' does not exist. Try 'main' or 'dev'."
+    elif "Repository not found" in stderr:
+        return False, "Repository not found. The Fastpy template may have moved."
+    else:
+        return False, stderr.strip() if stderr else "Unknown error during clone"
 
 
 def remove_git_history(project_path: Path) -> None:
@@ -301,19 +352,21 @@ def new(
     project_name: str = typer.Argument(..., help="Name of the project to create"),
     no_git: bool = typer.Option(False, "--no-git", help="Don't initialize a git repository"),
     branch: str = typer.Option("main", "--branch", "-b", help="Branch to clone from"),
-    install: bool = typer.Option(
+    no_install: bool = typer.Option(
         False,
-        "--install",
-        "-i",
-        help="Automatically set up venv, install dependencies, and run setup",
+        "--no-install",
+        help="Skip automatic venv creation, dependency installation, and setup",
     ),
 ) -> None:
     """Create a new Fastpy project.
 
+    By default, creates project with full setup (venv, dependencies, configuration).
+    Use --no-install to skip automatic setup.
+
     Example:
-        fastpy new my-api
+        fastpy new my-api              # Create + full setup (recommended)
+        fastpy new my-api --no-install # Create project only, manual setup later
         fastpy new my-api --branch dev
-        fastpy new my-api --install  # Create + full setup in one command
     """
     log_info(f"Creating new project: {project_name}")
 
@@ -346,9 +399,16 @@ def new(
     ) as progress:
         task = progress.add_task("Cloning Fastpy template...", total=None)
 
-        if not clone_repository(project_name, branch):
-            log_error("Failed to clone repository")
-            console.print("[red]Error:[/red] Failed to clone repository.")
+        success, error_msg = clone_repository(project_name, branch)
+        if not success:
+            log_error(f"Failed to clone repository: {error_msg}")
+            console.print(f"[red]Error:[/red] {error_msg}")
+            if "Network error" in error_msg:
+                console.print()
+                console.print("[dim]Troubleshooting:[/dim]")
+                console.print("  1. Check your internet connection")
+                console.print("  2. Try again in a few moments")
+                console.print("  3. If using VPN/proxy, try disabling it")
             raise typer.Exit(1)
 
         progress.update(task, description="Removing git history...")
@@ -364,20 +424,17 @@ def new(
     console.print("[green]✓[/green] Project created successfully!")
     console.print()
 
-    # If --install flag is provided, run the install process
-    if install:
+    # Run full install + setup process by default (unless --no-install)
+    if not no_install:
         console.print("[bold]Running automatic installation...[/bold]")
         console.print()
 
         # Change to project directory and run install
-        import os
-
         original_dir = os.getcwd()
         os.chdir(project_path)
 
         try:
             # Create virtual environment
-            venv_path = project_path / "venv"
             console.print("[blue]Creating virtual environment...[/blue]")
             with Progress(
                 SpinnerColumn(),
@@ -409,10 +466,22 @@ def new(
             )
             console.print("[green]✓[/green] pip upgraded")
 
-            # Install requirements
+            # Install requirements with auto MySQL client installation on macOS
             requirements_path = project_path / "requirements.txt"
-            if requirements_path.exists():
-                console.print("[blue]Installing dependencies...[/blue]")
+            mysql_packages = ["mysqlclient", "pymysql", "aiomysql"]
+            max_attempts = 2
+
+            for attempt in range(max_attempts):
+                if not requirements_path.exists():
+                    break
+
+                if attempt == 0:
+                    console.print("[blue]Installing dependencies...[/blue]")
+                else:
+                    console.print("[blue]Retrying dependency installation...[/blue]")
+
+                pip_env = os.environ.copy()
+
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
@@ -424,26 +493,77 @@ def new(
                         cwd=project_path,
                         capture_output=True,
                         text=True,
+                        env=pip_env,
                     )
                     progress.update(task, description="Done!")
 
                 if result.returncode == 0:
                     console.print("[green]✓[/green] Dependencies installed")
+                    break
                 else:
-                    console.print("[red]Error:[/red] Failed to install dependencies")
-                    console.print(f"[dim]{result.stderr}[/dim]")
+                    # Check if it's a MySQL-related error
+                    stderr_lower = result.stderr.lower()
+                    is_mysql_error = any(
+                        x in stderr_lower
+                        for x in ["mysqlclient", "mysql_config", "mariadb_config", "mysql.h"]
+                    )
+
+                    if is_mysql_error and sys.platform == "darwin" and attempt == 0:
+                        console.print()
+                        console.print("[yellow]⚠[/yellow] MySQL client installation failed.")
+
+                        if typer.confirm("Auto-install MySQL client via Homebrew?", default=True):
+                            if install_mysql_client_macos():
+                                console.print()
+                                continue  # Retry
+                            else:
+                                console.print("[yellow]Auto-install failed. Continuing without MySQL packages...[/yellow]")
+                                # Continue without MySQL - install other deps
+                                with open(requirements_path, "r") as f:
+                                    req_lines = f.readlines()
+                                filtered_reqs = [
+                                    line.strip() for line in req_lines
+                                    if line.strip() and not line.startswith("#")
+                                    and not any(pkg in line.lower() for pkg in mysql_packages)
+                                ]
+                                import tempfile
+                                with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+                                    tmp.write("\n".join(filtered_reqs))
+                                    tmp_path = tmp.name
+                                subprocess.run([python_cmd, "-m", "pip", "install", "-r", tmp_path], cwd=project_path, capture_output=True)
+                                os.unlink(tmp_path)
+                                console.print("[green]✓[/green] Dependencies installed (without MySQL packages)")
+                                break
+                        else:
+                            console.print("[dim]Skipping MySQL packages...[/dim]")
+                            break
+                    elif is_mysql_error:
+                        console.print("[yellow]⚠[/yellow] MySQL installation failed. Continuing without MySQL packages.")
+                        console.print("[dim]Use 'fastpy install --skip-mysql' for SQLite/PostgreSQL only.[/dim]")
+                        break
+                    else:
+                        console.print("[red]Error:[/red] Failed to install dependencies")
+                        console.print(f"[dim]{result.stderr[:500]}[/dim]")
+                        break
+
+            # Run setup automatically
+            console.print()
+            console.print("[bold]Running project setup...[/bold]")
+            console.print()
+
+            from fastpy_cli.setup import full_setup
+            full_setup()
 
             console.print()
-            console.print("[green]✓[/green] Installation complete!")
+            console.print("[green]✓[/green] Project ready!")
             console.print()
-            console.print("[bold]Next steps:[/bold]")
+            console.print("[bold]To start developing:[/bold]")
             console.print(f"  1. [cyan]cd {project_name}[/cyan]")
             if sys.platform == "win32":
                 console.print("  2. [cyan]venv\\Scripts\\activate[/cyan]")
             else:
                 console.print("  2. [cyan]source venv/bin/activate[/cyan]")
-            console.print("  3. [cyan]fastpy setup[/cyan]  (configure database & secrets)")
-            console.print("  4. [cyan]fastpy serve[/cyan]")
+            console.print("  3. [cyan]fastpy serve[/cyan]")
 
         finally:
             os.chdir(original_dir)
@@ -1154,11 +1274,14 @@ def doctor() -> None:
     - Required tools (git, pip)
     - Configuration status
     - AI provider setup
+    - Project dependencies
+    - Database connectivity
     """
     console.print()
     console.print(
         Panel.fit(
-            "[bold blue]Fastpy Doctor[/bold blue]",
+            "[bold blue]Fastpy Doctor[/bold blue]\n"
+            "[dim]Environment diagnostics[/dim]",
             border_style="blue",
         )
     )
@@ -1168,24 +1291,37 @@ def doctor() -> None:
     warnings = []
 
     # Python version check
+    console.print("[bold]System:[/bold]")
     py_version = sys.version_info
     py_status = "[green]✓[/green]" if py_version >= (3, 9) else "[red]✗[/red]"
-    console.print(f"{py_status} Python {py_version.major}.{py_version.minor}.{py_version.micro}")
+    console.print(f"  {py_status} Python {py_version.major}.{py_version.minor}.{py_version.micro}")
     if py_version < (3, 9):
         issues.append("Python 3.9 or higher is required")
 
     # Git check
     git_installed = check_git_installed()
     git_status = "[green]✓[/green]" if git_installed else "[red]✗[/red]"
-    console.print(f"{git_status} Git installed")
+    console.print(f"  {git_status} Git installed")
     if not git_installed:
         issues.append("Git is not installed. Install from https://git-scm.com")
+
+    # pip check
+    pip_works = False
+    try:
+        result = subprocess.run([sys.executable, "-m", "pip", "--version"], capture_output=True)
+        pip_works = result.returncode == 0
+    except Exception:
+        pass
+    pip_status = "[green]✓[/green]" if pip_works else "[red]✗[/red]"
+    console.print(f"  {pip_status} pip available")
+    if not pip_works:
+        issues.append("pip not available. Reinstall Python or run: python -m ensurepip")
 
     # Config file check
     config_exists = CONFIG_FILE.exists()
     config_status = "[green]✓[/green]" if config_exists else "[yellow]○[/yellow]"
     console.print(
-        f"{config_status} Config file {'exists' if config_exists else 'not found (optional)'}"
+        f"  {config_status} Config file {'exists' if config_exists else 'not found (optional)'}"
     )
     if not config_exists:
         warnings.append("No config file found. Run 'fastpy config --init' to create one")
@@ -1198,15 +1334,21 @@ def doctor() -> None:
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     anthropic_status = "[green]✓[/green]" if anthropic_key else "[yellow]○[/yellow]"
     console.print(f"  {anthropic_status} Anthropic (Claude)")
-    if not anthropic_key:
-        warnings.append("ANTHROPIC_API_KEY not set")
 
     # OpenAI
     openai_key = os.environ.get("OPENAI_API_KEY")
     openai_status = "[green]✓[/green]" if openai_key else "[yellow]○[/yellow]"
     console.print(f"  {openai_status} OpenAI (GPT)")
-    if not openai_key:
-        warnings.append("OPENAI_API_KEY not set")
+
+    # Google
+    google_key = os.environ.get("GOOGLE_API_KEY")
+    google_status = "[green]✓[/green]" if google_key else "[yellow]○[/yellow]"
+    console.print(f"  {google_status} Google (Gemini)")
+
+    # Groq
+    groq_key = os.environ.get("GROQ_API_KEY")
+    groq_status = "[green]✓[/green]" if groq_key else "[yellow]○[/yellow]"
+    console.print(f"  {groq_status} Groq (Fast inference)")
 
     # Ollama
     ollama_running = False
@@ -1219,8 +1361,11 @@ def doctor() -> None:
         pass
     ollama_status = "[green]✓[/green]" if ollama_running else "[yellow]○[/yellow]"
     console.print(f"  {ollama_status} Ollama (Local)")
-    if not ollama_running:
-        warnings.append("Ollama not running. Start with 'ollama serve'")
+
+    # Check if at least one AI provider is available
+    has_ai = anthropic_key or openai_key or google_key or groq_key or ollama_running
+    if not has_ai:
+        warnings.append("No AI provider configured. Run 'fastpy ai:config' for options")
 
     # Project check (if in a project)
     console.print()
@@ -1230,19 +1375,91 @@ def doctor() -> None:
 
         # Check venv
         venv_path = Path.cwd() / "venv"
-        venv_status = "[green]✓[/green]" if venv_path.exists() else "[red]✗[/red]"
-        console.print(f"  {venv_status} Virtual environment")
-        if not venv_path.exists():
-            issues.append("Virtual environment not found. Run: python -m venv venv")
+        venv_python, venv_bin = get_venv_paths()
+        if venv_path.exists():
+            console.print("  [green]✓[/green] Virtual environment exists")
+
+            # Check if venv is active
+            current_python = Path(sys.executable).resolve()
+            if venv_python and current_python == venv_python.resolve():
+                console.print("  [green]✓[/green] Virtual environment is active")
+            else:
+                console.print("  [yellow]○[/yellow] Virtual environment not activated")
+                if sys.platform == "win32":
+                    warnings.append("Activate venv: venv\\Scripts\\activate")
+                else:
+                    warnings.append("Activate venv: source venv/bin/activate")
+
+            # Check key dependencies in venv
+            if venv_python:
+                console.print()
+                console.print("  [bold]Dependencies:[/bold]")
+                deps_to_check = ["uvicorn", "alembic", "fastapi", "sqlmodel"]
+                for dep in deps_to_check:
+                    dep_path = venv_bin / dep if venv_bin else None
+                    if dep_path and dep_path.exists():
+                        console.print(f"    [green]✓[/green] {dep}")
+                    else:
+                        # Check if installed as a package
+                        check_result = subprocess.run(
+                            [str(venv_python), "-c", f"import {dep.replace('-', '_')}"],
+                            capture_output=True,
+                        )
+                        if check_result.returncode == 0:
+                            console.print(f"    [green]✓[/green] {dep}")
+                        else:
+                            console.print(f"    [red]✗[/red] {dep}")
+                            issues.append(f"Missing dependency: {dep}. Run: fastpy install")
+        else:
+            console.print("  [red]✗[/red] Virtual environment not found")
+            issues.append("Virtual environment not found. Run: fastpy install")
 
         # Check .env
+        console.print()
         env_path = Path.cwd() / ".env"
-        env_status = "[green]✓[/green]" if env_path.exists() else "[red]✗[/red]"
-        console.print(f"  {env_status} .env file")
-        if not env_path.exists():
-            issues.append(".env file not found. Run: cp .env.example .env")
+        if env_path.exists():
+            console.print("  [green]✓[/green] .env file exists")
+
+            # Check critical env vars
+            from fastpy_cli.setup import read_env
+
+            env_vars = read_env()
+            db_url = env_vars.get("DATABASE_URL")
+            secret_key = env_vars.get("SECRET_KEY")
+
+            if db_url:
+                console.print("  [green]✓[/green] DATABASE_URL configured")
+            else:
+                console.print("  [red]✗[/red] DATABASE_URL not set")
+                issues.append("DATABASE_URL not configured. Run: fastpy setup:db")
+
+            if secret_key and len(secret_key) >= 32:
+                console.print("  [green]✓[/green] SECRET_KEY configured")
+            elif secret_key:
+                console.print("  [yellow]○[/yellow] SECRET_KEY may be too short")
+                warnings.append("SECRET_KEY may be weak. Run: fastpy setup:secret")
+            else:
+                console.print("  [red]✗[/red] SECRET_KEY not set")
+                issues.append("SECRET_KEY not configured. Run: fastpy setup:secret")
+        else:
+            console.print("  [red]✗[/red] .env file not found")
+            issues.append(".env file not found. Run: fastpy setup:env")
+
+        # Check alembic/migrations
+        alembic_dir = Path.cwd() / "alembic"
+        if alembic_dir.exists():
+            versions_dir = alembic_dir / "versions"
+            has_migrations = versions_dir.exists() and any(versions_dir.glob("*.py"))
+            if has_migrations:
+                console.print("  [green]✓[/green] Migrations exist")
+            else:
+                console.print("  [yellow]○[/yellow] No migrations found")
+                warnings.append("No migrations found. Run: fastpy db:migrate")
     else:
         console.print("  [dim]Not inside a Fastpy project[/dim]")
+        console.print()
+        console.print("  [dim]Create a project with:[/dim]")
+        console.print("    [cyan]fastpy new my-api[/cyan]")
 
     # Summary
     console.print()
@@ -1257,9 +1474,113 @@ def doctor() -> None:
 
     if not issues and not warnings:
         console.print("[bold green]All checks passed![/bold green]")
+        console.print()
+        console.print("[dim]Your environment is ready to use Fastpy.[/dim]")
     elif not issues:
         console.print()
         console.print("[green]No critical issues found.[/green]")
+
+    console.print()
+    console.print(f"[dim]Fastpy CLI v{__version__}[/dim]")
+
+
+def check_brew_installed() -> bool:
+    """Check if Homebrew is installed."""
+    try:
+        result = subprocess.run(["brew", "--version"], capture_output=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def get_shell_config_path() -> Optional[Path]:
+    """Get the path to the user's shell config file."""
+    shell = os.environ.get("SHELL", "")
+    home = Path.home()
+
+    if "zsh" in shell:
+        return home / ".zshrc"
+    elif "bash" in shell:
+        # Check for .bash_profile first (macOS default), then .bashrc
+        bash_profile = home / ".bash_profile"
+        if bash_profile.exists():
+            return bash_profile
+        return home / ".bashrc"
+    return None
+
+
+def install_mysql_client_macos() -> bool:
+    """Install MySQL client via Homebrew on macOS and configure environment.
+
+    Returns True if installation was successful.
+    """
+    if not check_brew_installed():
+        console.print("[yellow]⚠[/yellow] Homebrew not installed")
+        console.print("[dim]Install from: https://brew.sh[/dim]")
+        return False
+
+    console.print()
+    console.print("[bold blue]Auto-installing MySQL client...[/bold blue]")
+    console.print()
+
+    # Step 1: Install mysql-client via brew
+    console.print("[blue]Installing mysql-client via Homebrew...[/blue]")
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Running brew install...", total=None)
+        result = subprocess.run(
+            ["brew", "install", "mysql-client"],
+            capture_output=True,
+            text=True,
+        )
+        progress.update(task, description="Done!")
+
+    if result.returncode != 0:
+        console.print("[red]✗[/red] Failed to install mysql-client")
+        console.print(f"[dim]{result.stderr}[/dim]")
+        return False
+
+    console.print("[green]✓[/green] mysql-client installed via Homebrew")
+
+    # Step 2: Determine the correct path (Intel vs Apple Silicon)
+    brew_prefix = "/opt/homebrew" if Path("/opt/homebrew").exists() else "/usr/local"
+    mysql_path = f"{brew_prefix}/opt/mysql-client"
+
+    # Step 3: Add environment variables to shell config
+    shell_config = get_shell_config_path()
+    if shell_config:
+        console.print(f"[blue]Adding environment variables to {shell_config.name}...[/blue]")
+
+        # The lines to add
+        env_lines = f'''
+# MySQL client configuration (added by fastpy)
+export PATH="{mysql_path}/bin:$PATH"
+export LDFLAGS="-L{mysql_path}/lib"
+export CPPFLAGS="-I{mysql_path}/include"
+export PKG_CONFIG_PATH="{mysql_path}/lib/pkgconfig"
+'''
+        # Check if already configured
+        existing_content = shell_config.read_text() if shell_config.exists() else ""
+        if "mysql-client" not in existing_content and f"{mysql_path}/bin" not in existing_content:
+            with open(shell_config, "a") as f:
+                f.write(env_lines)
+            console.print(f"[green]✓[/green] Environment variables added to {shell_config.name}")
+        else:
+            console.print(f"[green]✓[/green] Environment variables already configured")
+
+        # Step 4: Set environment variables for current process
+        os.environ["PATH"] = f"{mysql_path}/bin:{os.environ.get('PATH', '')}"
+        os.environ["LDFLAGS"] = f"-L{mysql_path}/lib"
+        os.environ["CPPFLAGS"] = f"-I{mysql_path}/include"
+        os.environ["PKG_CONFIG_PATH"] = f"{mysql_path}/lib/pkgconfig"
+
+        console.print("[green]✓[/green] Environment variables set for current session")
+        return True
+
+    return False
 
 
 @app.command("install")
@@ -1279,6 +1600,11 @@ def install_command(
     1. Creating a virtual environment (if it doesn't exist)
     2. Installing dependencies from requirements.txt
     3. Running fastpy setup (interactive project configuration)
+
+    On macOS, if MySQL client installation fails, it will automatically:
+    - Install mysql-client via Homebrew
+    - Add environment variables to your shell config
+    - Retry the installation
 
     This command should be run inside a Fastpy project directory.
 
@@ -1337,7 +1663,6 @@ def install_command(
 
     # Use venv python if it exists, otherwise use current python
     python_cmd = str(venv_python) if venv_python.exists() else sys.executable
-    pip_cmd = str(venv_pip) if venv_pip.exists() else f"{python_cmd} -m pip"
 
     # Step 2: Upgrade pip
     console.print("[blue]Upgrading pip...[/blue]")
@@ -1351,11 +1676,15 @@ def install_command(
     else:
         console.print("[yellow]⚠[/yellow] Could not upgrade pip (continuing anyway)")
 
-    # Step 3: Install requirements
+    # Step 3: Install requirements (with auto-retry for MySQL on macOS)
     requirements_path = project_path / requirements
-    if requirements_path.exists():
-        # MySQL packages to skip if --skip-mysql is set
-        mysql_packages = ["mysqlclient", "pymysql", "aiomysql"]
+    mysql_packages = ["mysqlclient", "pymysql", "aiomysql"]
+    max_attempts = 2  # Allow one retry after installing mysql-client
+
+    for attempt in range(max_attempts):
+        if not requirements_path.exists():
+            console.print(f"[yellow]⚠[/yellow] {requirements} not found, skipping dependency installation")
+            break
 
         if skip_mysql:
             console.print(
@@ -1387,8 +1716,14 @@ def install_command(
 
             install_target = tmp_req_path
         else:
-            console.print(f"[blue]Installing dependencies from {requirements}...[/blue]")
+            if attempt == 0:
+                console.print(f"[blue]Installing dependencies from {requirements}...[/blue]")
+            else:
+                console.print(f"[blue]Retrying dependency installation...[/blue]")
             install_target = requirements
+
+        # Get current environment with any MySQL paths we've set
+        pip_env = os.environ.copy()
 
         with Progress(
             SpinnerColumn(),
@@ -1401,6 +1736,7 @@ def install_command(
                 cwd=project_path,
                 capture_output=True,
                 text=True,
+                env=pip_env,
             )
             progress.update(task, description="Done!")
 
@@ -1413,6 +1749,7 @@ def install_command(
 
         if result.returncode == 0:
             console.print("[green]✓[/green] Dependencies installed")
+            break  # Success!
         else:
             # Check if it's a MySQL-related error
             stderr_lower = result.stderr.lower()
@@ -1421,7 +1758,31 @@ def install_command(
                 for x in ["mysqlclient", "mysql_config", "mariadb_config", "mysql.h"]
             )
 
-            if is_mysql_error:
+            if is_mysql_error and sys.platform == "darwin" and attempt == 0:
+                # On macOS, offer to auto-install MySQL client
+                console.print()
+                console.print(
+                    "[yellow]⚠[/yellow] MySQL client installation failed. "
+                )
+
+                # Ask user if they want to auto-install
+                if typer.confirm("Auto-install MySQL client via Homebrew?", default=True):
+                    if install_mysql_client_macos():
+                        console.print()
+                        continue  # Retry installation
+                    else:
+                        console.print()
+                        console.print("[yellow]Auto-install failed. Try manually or use --skip-mysql[/yellow]")
+                else:
+                    # User declined, offer alternatives
+                    console.print()
+                    console.print("[bold]Alternatives:[/bold]")
+                    console.print("  • Skip MySQL: [cyan]fastpy install --skip-mysql[/cyan]")
+                    console.print("  • Manual install:")
+                    console.print("    [cyan]brew install mysql-client[/cyan]")
+                    raise typer.Exit(1)
+
+            elif is_mysql_error:
                 console.print()
                 console.print(
                     "[yellow]⚠[/yellow] MySQL client installation failed. "
@@ -1434,15 +1795,6 @@ def install_command(
                     console.print("[bold]Options:[/bold]")
                     console.print("  1. Install MySQL client (if using MySQL):")
                     console.print("     [cyan]brew install mysql-client[/cyan]")
-                    console.print(
-                        "     [cyan]export PATH=\"/opt/homebrew/opt/mysql-client/bin:$PATH\"[/cyan]"
-                    )
-                    console.print(
-                        "     [cyan]export LDFLAGS=\"-L/opt/homebrew/opt/mysql-client/lib\"[/cyan]"
-                    )
-                    console.print(
-                        "     [cyan]export CPPFLAGS=\"-I/opt/homebrew/opt/mysql-client/include\"[/cyan]"
-                    )
                     console.print()
                     console.print("  2. Skip MySQL packages (if using SQLite/PostgreSQL):")
                     console.print("     [cyan]fastpy install --skip-mysql[/cyan]")
@@ -1524,6 +1876,105 @@ def init_command(
     console.print("     [cyan]export ANTHROPIC_API_KEY=your-key[/cyan]")
     console.print("  3. Create a new project:")
     console.print("     [cyan]fastpy new my-api[/cyan]")
+
+
+# Shell integration script content
+SHELL_INTEGRATION_SCRIPT = '''# Fastpy Shell Integration
+# Enables auto-cd and auto-activate for fastpy commands
+
+fastpy() {
+    if [[ "$1" == "new" && -n "$2" ]]; then
+        local project_name="" no_install=false
+        for arg in "$@"; do
+            [[ "$arg" == "--no-install" ]] && no_install=true
+            [[ ! "$arg" =~ ^- && "$arg" != "new" && -z "$project_name" ]] && project_name="$arg"
+        done
+        command fastpy "$@"
+        local rc=$?
+        # Auto-cd and activate unless --no-install was used
+        if [[ $rc -eq 0 && "$no_install" == false && -d "$project_name" ]]; then
+            echo -e "\\n\\033[1;34mEntering project directory...\\033[0m"
+            cd "$project_name"
+            [[ -f "venv/bin/activate" ]] && source venv/bin/activate && echo -e "\\033[1;32m✓ Ready! Run: fastpy serve\\033[0m"
+        fi
+        return $rc
+    elif [[ "$1" == "install" ]]; then
+        command fastpy "$@"
+        local rc=$?
+        [[ $rc -eq 0 && -f "venv/bin/activate" ]] && source venv/bin/activate && echo -e "\\n\\033[1;32m✓ Venv activated!\\033[0m"
+        return $rc
+    else
+        command fastpy "$@"
+    fi
+}
+'''
+
+
+@app.command("shell:install")
+def shell_install_command() -> None:
+    """Install shell integration for auto-cd and auto-activate.
+
+    Adds a shell function to your .zshrc or .bashrc that:
+    - Auto-cd into project after 'fastpy new'
+    - Auto-activate venv after project creation or 'fastpy install'
+
+    Examples:
+        fastpy shell:install
+    """
+    shell_config = get_shell_config_path()
+
+    if not shell_config:
+        console.print("[red]Error:[/red] Could not detect shell config file")
+        console.print("[dim]Manually add the following to your shell config:[/dim]")
+        console.print()
+        console.print(SHELL_INTEGRATION_SCRIPT)
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(
+        Panel.fit(
+            "[bold blue]Shell Integration[/bold blue]\n"
+            "[dim]Auto-cd and auto-activate for fastpy[/dim]",
+            border_style="blue",
+        )
+    )
+    console.print()
+
+    # Check if already installed
+    existing_content = shell_config.read_text() if shell_config.exists() else ""
+    if "# Fastpy Shell Integration" in existing_content:
+        console.print("[green]✓[/green] Shell integration already installed")
+        console.print()
+        console.print(f"[dim]Location: {shell_config}[/dim]")
+        console.print()
+        console.print("[bold]Features enabled:[/bold]")
+        console.print("  • [cyan]fastpy new my-api[/cyan] → auto-cd + activate")
+        console.print("  • [cyan]fastpy install[/cyan] → auto-activate venv")
+        return
+
+    # Confirm installation
+    console.print(f"This will add shell integration to: [cyan]{shell_config}[/cyan]")
+    console.print()
+    console.print("[bold]Features:[/bold]")
+    console.print("  • Auto-cd into project after [cyan]fastpy new[/cyan]")
+    console.print("  • Auto-activate venv after [cyan]fastpy install[/cyan]")
+    console.print()
+
+    if not typer.confirm("Install shell integration?", default=True):
+        console.print("Aborted.")
+        raise typer.Exit(0)
+
+    # Add to shell config
+    with open(shell_config, "a") as f:
+        f.write(f"\n{SHELL_INTEGRATION_SCRIPT}\n")
+
+    console.print()
+    console.print(f"[green]✓[/green] Shell integration installed to {shell_config}")
+    console.print()
+    console.print("[bold]To activate now, run:[/bold]")
+    console.print(f"  [cyan]source {shell_config}[/cyan]")
+    console.print()
+    console.print("[dim]Or restart your terminal.[/dim]")
 
 
 @app.command("libs")
@@ -1979,6 +2430,41 @@ def _show_lib_usage(lib_name: str) -> None:
         console.print("  [dim]No examples available[/dim]")
 
 
+def show_not_in_project_error(command: str) -> None:
+    """Show helpful error when running project commands outside a project."""
+    console.print()
+    console.print(f"[red]Error:[/red] '{command}' must be run inside a Fastpy project.")
+    console.print()
+    console.print("[bold]To create a new project:[/bold]")
+    console.print("  [cyan]fastpy new my-api[/cyan]")
+    console.print()
+    console.print("[bold]Or if you have an existing project:[/bold]")
+    console.print("  [cyan]cd your-project-directory[/cyan]")
+    console.print()
+    console.print("[dim]Run 'fastpy --help' to see available commands.[/dim]")
+
+
+# Commands that require being inside a project (proxied to cli.py)
+PROJECT_COMMANDS = {
+    "serve",
+    "test",
+    "make:model",
+    "make:route",
+    "make:resource",
+    "make:schema",
+    "make:service",
+    "make:facade",
+    "make:middleware",
+    "make:admin",
+    "db:migrate",
+    "db:seed",
+    "db:fresh",
+    "db:status",
+    "route:list",
+    "list",
+}
+
+
 def main() -> None:
     """Entry point for the CLI."""
     # Initialize logger with config
@@ -1998,10 +2484,17 @@ def main() -> None:
                 setup_logger(debug=True, log_file=config.log_file)
         else:
             # If it's not a fastpy CLI command and we're in a project, proxy it
-            if command not in FASTPY_COMMANDS and is_fastpy_project():
-                log_debug(f"Proxying command '{command}' to project CLI")
-                exit_code = proxy_to_project_cli(sys.argv[1:])
-                sys.exit(exit_code)
+            if command not in FASTPY_COMMANDS:
+                if is_fastpy_project():
+                    log_debug(f"Proxying command '{command}' to project CLI")
+                    exit_code = proxy_to_project_cli(sys.argv[1:])
+                    sys.exit(exit_code)
+                else:
+                    # Check if this is a known project command
+                    if command in PROJECT_COMMANDS or command.startswith("make:") or command.startswith("db:"):
+                        show_not_in_project_error(command)
+                        sys.exit(1)
+                    # Otherwise let typer handle it (will show "No such command" error)
 
     app()
 
