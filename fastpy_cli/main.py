@@ -449,6 +449,67 @@ def ai(
 
                 console.print()
 
+        # Extract model names from executed commands for follow-up prompts
+        model_names = []
+        for cmd in commands:
+            command = cmd.get("command", "")
+            # Extract model name from make:model or make:resource commands
+            if "make:model" in command or "make:resource" in command:
+                parts = command.split()
+                for i, part in enumerate(parts):
+                    if part in ("make:model", "make:resource") and i + 1 < len(parts):
+                        model_name = parts[i + 1]
+                        # Skip if it's a flag
+                        if not model_name.startswith("-"):
+                            model_names.append(model_name)
+                        break
+
+        # Prompt to add routes for models without routes
+        models_without_routes = []
+        for cmd in commands:
+            command = cmd.get("command", "")
+            # Check if make:model was used (no routes) vs make:resource (has routes)
+            if "make:model" in command and "make:route" not in command:
+                parts = command.split()
+                for i, part in enumerate(parts):
+                    if part == "make:model" and i + 1 < len(parts):
+                        model_name = parts[i + 1]
+                        if not model_name.startswith("-"):
+                            models_without_routes.append(model_name)
+                        break
+
+        if models_without_routes:
+            console.print()
+            console.print(
+                f"[yellow]Models without routes:[/yellow] {', '.join(models_without_routes)}"
+            )
+            if typer.confirm("Generate routes for these models?", default=True):
+                for model_name in models_without_routes:
+                    route_cmd = f"fastpy make:route {model_name} --protected"
+                    console.print(f"[bold]Running:[/bold] {route_cmd}")
+                    try:
+                        result = safe_execute_command(route_cmd, allow_unsafe=False)
+                        if result.returncode != 0:
+                            console.print(f"[red]Failed to create route for {model_name}[/red]")
+                    except ValueError as e:
+                        console.print(f"[red]Error:[/red] {e}")
+                    console.print()
+
+        # Prompt to run migrations
+        console.print()
+        if typer.confirm("Run database migrations?", default=True):
+            migrate_cmd = "fastpy db:migrate"
+            console.print(f"[bold]Running:[/bold] {migrate_cmd}")
+            try:
+                result = safe_execute_command(migrate_cmd, allow_unsafe=False)
+                if result.returncode == 0:
+                    console.print("[green]✓[/green] Migrations completed!")
+                else:
+                    console.print("[red]Migration failed[/red]")
+            except ValueError as e:
+                console.print(f"[red]Error:[/red] {e}")
+
+        console.print()
         console.print("[green]✓[/green] Done!")
     else:
         console.print(
