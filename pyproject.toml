@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastpy-cli"
-version = "0.6.4"
+version = "0.6.7"
 description = "Create production-ready FastAPI projects with one command"
 readme = "README.md"
 license = {text = "MIT"}

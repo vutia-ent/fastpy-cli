@@ -11,6 +11,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.7] - 2025-12-06
+
+### Fixed
+
+- **AI Command Execution**: Fixed `FileNotFoundError: 'python'` when running AI-generated commands
+  - Updated system prompt to use `fastpy` prefix instead of `python cli.py`
+  - Added automatic normalization of old-style `python cli.py` commands to `fastpy`
+  - Commands now execute correctly on systems without `python` alias
+
+---
+
+## [0.6.6] - 2025-12-06
+
+### Improved
+
+- **User-Friendly API Error Messages**: Clear, actionable error messages for AI commands
+  - 401: Invalid API key with link to get a new one
+  - 403: Access forbidden with permission guidance
+  - 429: Rate limit exceeded with link to check billing/usage
+  - 500/502/503: Server errors with appropriate guidance
+  - Shows API response message when available
+  - Specific error handling for timeout and connection failures
+
+### Changed
+
+- Updated `ai:config --test` to show helpful error details
+- Improved error messages in `fastpy ai` command with retry feedback
+
+---
+
 ## [0.6.5] - 2025-12-06
 
 ### Added
@@ -293,7 +323,9 @@ data = Crypt.decrypt(encrypted)
 
 ---
 
-[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.5...HEAD
+[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.7...HEAD
+[0.6.7]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.6...v0.6.7
+[0.6.6]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.2...v0.6.3

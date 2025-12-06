@@ -14,10 +14,56 @@ from fastpy_cli.logger import log_debug, log_error, log_info
 
 console = Console()
 
+
+def get_api_error_message(status_code: int, provider: str) -> tuple[str, str]:
+    """Get user-friendly error message for API status codes.
+
+    Args:
+        status_code: HTTP status code
+        provider: Provider name (Anthropic, OpenAI)
+
+    Returns:
+        Tuple of (title, message)
+    """
+    billing_url = (
+        "https://console.anthropic.com/settings/billing"
+        if provider == "Anthropic"
+        else "https://platform.openai.com/usage"
+    )
+    key_url = (
+        "https://console.anthropic.com"
+        if provider == "Anthropic"
+        else "https://platform.openai.com/api-keys"
+    )
+
+    error_messages = {
+        401: (
+            "Invalid API key",
+            f"Your {provider} API key is invalid or revoked. Get a new key at: {key_url}",
+        ),
+        403: (
+            "Access forbidden",
+            "Your API key doesn't have permission for this operation.",
+        ),
+        429: (
+            "Rate limit exceeded",
+            f"You've hit the API rate limit (quota/credits exhausted or too many requests). "
+            f"Check your usage at: {billing_url}",
+        ),
+        500: ("Server error", f"{provider} is experiencing issues. Try again later."),
+        502: ("Bad gateway", f"{provider} service is temporarily unavailable."),
+        503: ("Service unavailable", f"{provider} is under maintenance or overloaded."),
+    }
+
+    return error_messages.get(
+        status_code, ("API error", f"Unexpected error from {provider} (HTTP {status_code})")
+    )
+
+
 SYSTEM_PROMPT = """You are a Fastpy CLI assistant that generates FastAPI resources.
 
 When given a description, output ONLY a JSON array of commands to run. Each command should be a dict with:
-- "command": the full CLI command to run
+- "command": the full CLI command to run (use "fastpy" as the command prefix)
 - "description": brief description of what it creates
 
 Available field types: string, text, integer, float, boolean, datetime, email, url, json, uuid, decimal, money, percent, date, time, phone, slug, ip, color, file, image
@@ -26,8 +72,8 @@ Available field rules: required, nullable, unique, index, max:N, min:N, foreign:
 
 Example output for "Create a blog with posts and categories":
 [
-  {"command": "python cli.py make:resource Category -f name:string:required,unique -f slug:string:unique -f description:text:nullable -m", "description": "Category model with name, slug, description"},
-  {"command": "python cli.py make:resource Post -f title:string:required,max:200 -f slug:string:unique -f body:text:required -f published_at:datetime:nullable -f category_id:integer:foreign:categories.id -m -p", "description": "Post model with title, body, and category relation"}
+  {"command": "fastpy make:resource Category -f name:string:required,unique -f slug:string:unique -f description:text:nullable -m", "description": "Category model with name, slug, description"},
+  {"command": "fastpy make:resource Post -f title:string:required,max:200 -f slug:string:unique -f body:text:required -f published_at:datetime:nullable -f category_id:integer:foreign:categories.id -m -p", "description": "Post model with title, body, and category relation"}
 ]
 
 Rules:
@@ -37,6 +83,7 @@ Rules:
 4. Use -m flag to generate migrations
 5. Use -p flag for protected routes when appropriate
 6. Order resources so dependencies come first (e.g., Category before Post)
+7. Always use "fastpy" as the command prefix (not "python cli.py")
 """
 
 # JSON Schema for validating AI responses
@@ -164,15 +211,36 @@ class AIProvider(ABC):
                         e.response.headers.get("retry-after", str(int(delay)))
                     )
                     log_info(f"Rate limited, waiting {retry_after}s")
-                    time.sleep(retry_after)
+                    if attempt < max_retries - 1:
+                        console.print(
+                            f"[yellow]Rate limited, waiting {retry_after}s...[/yellow]"
+                        )
+                        time.sleep(retry_after)
+                    else:
+                        # Final attempt failed with rate limit
+                        title, message = get_api_error_message(status, "API")
+                        console.print(f"[red]Error:[/red] {title}")
+                        console.print(f"[dim]{message}[/dim]")
+                        return None
                 elif 400 <= status < 500:
+                    # Client errors - show user-friendly message
+                    title, message = get_api_error_message(status, "API")
+                    console.print(f"[red]Error:[/red] {title}")
+                    console.print(f"[dim]{message}[/dim]")
                     log_error(f"Client error {status}: {e}")
                     return None
                 else:  # Server errors (5xx)
                     log_error(f"Server error {status} (attempt {attempt + 1})")
                     if attempt < max_retries - 1:
+                        console.print(
+                            f"[yellow]Server error, retrying in {delay:.0f}s...[/yellow]"
+                        )
                         time.sleep(delay)
                         delay *= 2
+                    else:
+                        title, message = get_api_error_message(status, "API")
+                        console.print(f"[red]Error:[/red] {title}")
+                        console.print(f"[dim]{message}[/dim]")
 
             except httpx.ConnectError as e:
                 log_error(f"Connection error: {e}")
@@ -405,13 +473,23 @@ def parse_ai_response(response: str) -> list[dict]:
             log_error(f"Schema validation failed: {error}")
             return []
 
-        # Additional validation for command content
+        # Additional validation and normalization for command content
         validated_commands = []
         for cmd in commands:
             command = cmd.get("command", "").strip()
 
+            # Normalize old-style commands to use fastpy
+            if command.startswith("python cli.py "):
+                command = command.replace("python cli.py ", "fastpy ", 1)
+                cmd["command"] = command
+                log_debug(f"Normalized command: {command}")
+            elif command.startswith("python3 cli.py "):
+                command = command.replace("python3 cli.py ", "fastpy ", 1)
+                cmd["command"] = command
+                log_debug(f"Normalized command: {command}")
+
             # Ensure command starts with expected prefix
-            if not command.startswith(("python cli.py ", "fastpy ")):
+            if not command.startswith("fastpy "):
                 log_debug(f"Skipping invalid command: {command}")
                 continue
 

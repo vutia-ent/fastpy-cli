@@ -517,24 +517,76 @@ def config(
         console.print("[dim]Run 'fastpy config --init' to create config file[/dim]")
 
 
+def update_env_file(key: str, value: str, env_path: Path = Path(".env")) -> bool:
+    """Update or add a key-value pair in the .env file.
+
+    Args:
+        key: Environment variable name
+        value: Value to set
+        env_path: Path to .env file (defaults to current directory)
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        lines = []
+        key_found = False
+
+        # Read existing file if it exists
+        if env_path.exists():
+            with open(env_path, "r") as f:
+                for line in f:
+                    # Check if this line contains our key
+                    if line.strip().startswith(f"{key}="):
+                        lines.append(f"{key}={value}\n")
+                        key_found = True
+                    else:
+                        lines.append(line)
+
+        # Add key if not found
+        if not key_found:
+            # Add newline if file doesn't end with one
+            if lines and not lines[-1].endswith("\n"):
+                lines.append("\n")
+            lines.append(f"{key}={value}\n")
+
+        # Write back
+        with open(env_path, "w") as f:
+            f.writelines(lines)
+
+        return True
+    except Exception as e:
+        console.print(f"[red]Error updating .env:[/red] {e}")
+        return False
+
+
 @app.command("ai:config")
 def ai_config_command(
     provider: Optional[str] = typer.Option(
         None, "--provider", "-p", help="Set AI provider: anthropic, openai, ollama"
     ),
+    key: Optional[str] = typer.Option(
+        None, "--key", "-k", help="Set API key (saves to .env file)"
+    ),
     test: bool = typer.Option(
         False, "--test", "-t", help="Test the AI connection"
     ),
+    env_file: Optional[str] = typer.Option(
+        None, "--env", "-e", help="Path to .env file (default: ./.env)"
+    ),
 ) -> None:
-    """Configure AI provider for code generation.
+    """Configure AI provider and API key for code generation.
 
     Set up your preferred AI provider for the 'fastpy ai' command.
+    API keys are saved to your project's .env file for security.
 
     Examples:
-        fastpy ai:config                      # Interactive setup
-        fastpy ai:config -p anthropic         # Set provider
-        fastpy ai:config -p ollama            # Use local Ollama
-        fastpy ai:config --test               # Test connection
+        fastpy ai:config                              # Interactive setup
+        fastpy ai:config -p anthropic                 # Set provider
+        fastpy ai:config -p anthropic -k sk-xxx       # Set provider + key
+        fastpy ai:config -k sk-xxx                    # Set key for current provider
+        fastpy ai:config -p ollama                    # Use local Ollama
+        fastpy ai:config --test                       # Test connection
 
     Supported Providers:
         anthropic  - Claude (requires ANTHROPIC_API_KEY)
@@ -549,6 +601,33 @@ def ai_config_command(
     console.print()
 
     cfg = get_config()
+    env_path = Path(env_file) if env_file else Path(".env")
+
+    # Handle API key setting
+    if key:
+        # Determine which provider the key is for
+        target_provider = provider.lower() if provider else cfg.ai_provider
+
+        if target_provider == "ollama":
+            console.print("[yellow]Note:[/yellow] Ollama doesn't require an API key")
+        else:
+            # Determine environment variable name
+            env_var = {
+                "anthropic": "ANTHROPIC_API_KEY",
+                "openai": "OPENAI_API_KEY",
+            }.get(target_provider)
+
+            if not env_var:
+                console.print(f"[red]Error:[/red] Unknown provider: {target_provider}")
+                raise typer.Exit(1)
+
+            # Update .env file
+            if update_env_file(env_var, key, env_path):
+                console.print(f"[green]✓[/green] {env_var} saved to [cyan]{env_path}[/cyan]")
+                # Also set it in current environment for immediate use
+                os.environ[env_var] = key
+            else:
+                raise typer.Exit(1)
 
     # If provider specified, update config
     if provider:
@@ -573,29 +652,36 @@ def ai_config_command(
 
         console.print(f"[green]✓[/green] AI provider set to: [cyan]{provider}[/cyan]")
 
-        # Show next steps
-        if provider == "anthropic":
-            key = os.environ.get("ANTHROPIC_API_KEY")
-            if not key:
+        # Show next steps only if key wasn't just set
+        if not key:
+            if provider == "anthropic":
+                existing_key = os.environ.get("ANTHROPIC_API_KEY")
+                if not existing_key:
+                    console.print()
+                    console.print("[yellow]Set your API key:[/yellow]")
+                    console.print(f"  fastpy ai:config -k YOUR_API_KEY")
+                    console.print("  [dim]or[/dim]")
+                    console.print("  export ANTHROPIC_API_KEY=your-key-here")
+                    console.print()
+                    console.print("[dim]Get your key at: https://console.anthropic.com[/dim]")
+            elif provider == "openai":
+                existing_key = os.environ.get("OPENAI_API_KEY")
+                if not existing_key:
+                    console.print()
+                    console.print("[yellow]Set your API key:[/yellow]")
+                    console.print(f"  fastpy ai:config -k YOUR_API_KEY")
+                    console.print("  [dim]or[/dim]")
+                    console.print("  export OPENAI_API_KEY=your-key-here")
+                    console.print()
+                    console.print("[dim]Get your key at: https://platform.openai.com[/dim]")
+            elif provider == "ollama":
                 console.print()
-                console.print("[yellow]Set your API key:[/yellow]")
-                console.print("  export ANTHROPIC_API_KEY=your-key-here")
-                console.print()
-                console.print("[dim]Get your key at: https://console.anthropic.com[/dim]")
-        elif provider == "openai":
-            key = os.environ.get("OPENAI_API_KEY")
-            if not key:
-                console.print()
-                console.print("[yellow]Set your API key:[/yellow]")
-                console.print("  export OPENAI_API_KEY=your-key-here")
-                console.print()
-                console.print("[dim]Get your key at: https://platform.openai.com[/dim]")
-        elif provider == "ollama":
-            console.print()
-            console.print("[dim]Ollama runs locally - no API key needed[/dim]")
-            console.print("[dim]Start with: ollama serve[/dim]")
-            console.print("[dim]Download at: https://ollama.ai[/dim]")
+                console.print("[dim]Ollama runs locally - no API key needed[/dim]")
+                console.print("[dim]Start with: ollama serve[/dim]")
+                console.print("[dim]Download at: https://ollama.ai[/dim]")
 
+    # Exit if we set provider or key
+    if provider or key:
         raise typer.Exit(0)
 
     # Test connection
@@ -604,11 +690,70 @@ def ai_config_command(
         console.print(f"Testing [cyan]{current_provider}[/cyan] connection...")
         console.print()
 
+        def handle_api_error(status_code: int, response: "requests.Response", provider: str) -> None:
+            """Display user-friendly error messages for API errors."""
+            error_messages = {
+                401: (
+                    "Invalid API key",
+                    f"Your {provider} API key is invalid or has been revoked.\n"
+                    f"  Get a new key at: {'https://console.anthropic.com' if provider == 'Anthropic' else 'https://platform.openai.com/api-keys'}"
+                ),
+                403: (
+                    "Access forbidden",
+                    "Your API key doesn't have permission for this operation.\n"
+                    "  Check your account permissions and API key scopes."
+                ),
+                429: (
+                    "Rate limit exceeded",
+                    "You've hit the API rate limit. This usually means:\n"
+                    "  • You've exceeded your quota or credit limit\n"
+                    "  • Too many requests in a short period\n"
+                    f"  Check your usage at: {'https://console.anthropic.com/settings/billing' if provider == 'Anthropic' else 'https://platform.openai.com/usage'}"
+                ),
+                500: (
+                    "Server error",
+                    f"{provider} is experiencing issues. Try again in a few minutes."
+                ),
+                502: (
+                    "Bad gateway",
+                    f"{provider} service is temporarily unavailable. Try again shortly."
+                ),
+                503: (
+                    "Service unavailable",
+                    f"{provider} is under maintenance or overloaded. Try again later."
+                ),
+            }
+
+            title, message = error_messages.get(
+                status_code,
+                ("Unknown error", f"Unexpected error from {provider} API.")
+            )
+
+            console.print(f"[red]✗[/red] {title} (HTTP {status_code})")
+            console.print()
+            for line in message.split("\n"):
+                console.print(f"[dim]{line}[/dim]")
+
+            # Try to get more details from response
+            try:
+                error_body = response.json()
+                if "error" in error_body:
+                    error_detail = error_body["error"]
+                    if isinstance(error_detail, dict):
+                        error_msg = error_detail.get("message", "")
+                    else:
+                        error_msg = str(error_detail)
+                    if error_msg:
+                        console.print()
+                        console.print(f"[dim]API message: {error_msg}[/dim]")
+            except Exception:
+                pass
+
         if current_provider == "anthropic":
             key = os.environ.get("ANTHROPIC_API_KEY")
             if not key:
                 console.print("[red]✗[/red] ANTHROPIC_API_KEY not set")
-                console.print("[dim]Set with: export ANTHROPIC_API_KEY=your-key[/dim]")
+                console.print("[dim]Set with: fastpy ai:config -k YOUR_KEY[/dim]")
                 raise typer.Exit(1)
             try:
                 response = requests.post(
@@ -628,15 +773,21 @@ def ai_config_command(
                 if response.status_code == 200:
                     console.print("[green]✓[/green] Anthropic connection successful!")
                 else:
-                    console.print(f"[red]✗[/red] API error: {response.status_code}")
+                    handle_api_error(response.status_code, response, "Anthropic")
+            except requests.exceptions.Timeout:
+                console.print("[red]✗[/red] Connection timed out")
+                console.print("[dim]The Anthropic API took too long to respond. Try again.[/dim]")
+            except requests.exceptions.ConnectionError:
+                console.print("[red]✗[/red] Connection failed")
+                console.print("[dim]Could not connect to Anthropic API. Check your internet connection.[/dim]")
             except Exception as e:
-                console.print(f"[red]✗[/red] Connection failed: {e}")
+                console.print(f"[red]✗[/red] Unexpected error: {e}")
 
         elif current_provider == "openai":
             key = os.environ.get("OPENAI_API_KEY")
             if not key:
                 console.print("[red]✗[/red] OPENAI_API_KEY not set")
-                console.print("[dim]Set with: export OPENAI_API_KEY=your-key[/dim]")
+                console.print("[dim]Set with: fastpy ai:config -k YOUR_KEY[/dim]")
                 raise typer.Exit(1)
             try:
                 response = requests.post(
@@ -655,9 +806,15 @@ def ai_config_command(
                 if response.status_code == 200:
                     console.print("[green]✓[/green] OpenAI connection successful!")
                 else:
-                    console.print(f"[red]✗[/red] API error: {response.status_code}")
+                    handle_api_error(response.status_code, response, "OpenAI")
+            except requests.exceptions.Timeout:
+                console.print("[red]✗[/red] Connection timed out")
+                console.print("[dim]The OpenAI API took too long to respond. Try again.[/dim]")
+            except requests.exceptions.ConnectionError:
+                console.print("[red]✗[/red] Connection failed")
+                console.print("[dim]Could not connect to OpenAI API. Check your internet connection.[/dim]")
             except Exception as e:
-                console.print(f"[red]✗[/red] Connection failed: {e}")
+                console.print(f"[red]✗[/red] Unexpected error: {e}")
 
         elif current_provider == "ollama":
             host = cfg.get("ai", "ollama_host", "http://localhost:11434")
@@ -731,11 +888,14 @@ def ai_config_command(
     console.print()
     console.print("[bold]Quick Setup[/bold]")
     console.print()
-    console.print("  # Set provider")
+    console.print("  # Set provider and API key (saves to .env)")
+    console.print("  [cyan]fastpy ai:config -p anthropic -k YOUR_API_KEY[/cyan]")
+    console.print()
+    console.print("  # Set provider only")
     console.print("  [cyan]fastpy ai:config -p anthropic[/cyan]")
     console.print()
-    console.print("  # Set API key (add to ~/.bashrc or ~/.zshrc)")
-    console.print("  [cyan]export ANTHROPIC_API_KEY=your-key-here[/cyan]")
+    console.print("  # Set API key for current provider")
+    console.print("  [cyan]fastpy ai:config -k YOUR_API_KEY[/cyan]")
     console.print()
     console.print("  # Test connection")
     console.print("  [cyan]fastpy ai:config --test[/cyan]")
