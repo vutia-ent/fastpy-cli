@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.8] - 2025-12-06
+
+### Improved
+
+- **Graceful error handling**: Running project commands (like `fastpy serve`) without venv now shows friendly error messages instead of Python tracebacks
+  - Missing venv: "Virtual environment not found. Run: fastpy install"
+  - Missing dependencies: "Missing dependencies. Run: fastpy install"
+- Pre-validates that cli.py can be imported before running commands
+
+---
+
 ## [1.2.7] - 2025-12-06
 
 ### Changed

@@ -236,37 +236,55 @@ def proxy_to_project_cli(args: list[str]) -> int:
     # Get venv paths
     venv_python, venv_bin = get_venv_paths()
 
-    if venv_python:
-        python_cmd = str(venv_python)
-        # Set PATH to include venv bin directory so subprocesses find uvicorn, etc.
-        env = os.environ.copy()
-        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
-        # Also set VIRTUAL_ENV for tools that check it
-        env["VIRTUAL_ENV"] = str(Path.cwd() / "venv")
-    else:
-        python_cmd = sys.executable
-        env = None
+    # Check if venv exists
+    if not venv_python:
+        console.print()
+        console.print("[red]Error:[/red] Virtual environment not found.")
+        console.print()
+        console.print("[bold]To set up your project:[/bold]")
+        console.print("  [cyan]fastpy install[/cyan]")
+        console.print()
+        console.print("[dim]This will create the venv and install dependencies.[/dim]")
+        return 1
 
+    python_cmd = str(venv_python)
+    # Set PATH to include venv bin directory so subprocesses find uvicorn, etc.
+    env = os.environ.copy()
+    env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+    # Also set VIRTUAL_ENV for tools that check it
+    env["VIRTUAL_ENV"] = str(Path.cwd() / "venv")
+
+    # Quick check: verify cli.py can be imported (catches missing dependencies)
+    check_cmd = [python_cmd, "-c", "import sys; sys.path.insert(0, '.'); import cli"]
+    check_result = subprocess.run(check_cmd, env=env, capture_output=True, text=True)
+
+    if check_result.returncode != 0:
+        stderr = check_result.stderr or ""
+        if "ModuleNotFoundError" in stderr or "ImportError" in stderr or "No module named" in stderr:
+            console.print()
+            console.print("[red]Error:[/red] Missing dependencies in virtual environment.")
+            console.print()
+            console.print("[bold]To install dependencies:[/bold]")
+            console.print("  [cyan]fastpy install[/cyan]")
+            console.print()
+            console.print("[dim]Or manually:[/dim]")
+            console.print("  [cyan]source venv/bin/activate[/cyan]")
+            console.print("  [cyan]pip install -r requirements.txt[/cyan]")
+            return 1
+
+    # Run the actual command (without capturing, for real-time output)
     cmd = [python_cmd, str(cli_py)] + args
     log_debug(f"Proxying to project CLI: {cmd}")
 
     try:
         result = subprocess.run(cmd, env=env)
-
-        # Check for common "not found" errors and show helpful hint
-        if result.returncode != 0:
-            # If venv exists but not activated, show hint
-            if venv_python and not is_venv_active():
-                command = args[0] if args else ""
-                show_venv_hint(command)
-
         return result.returncode
 
     except FileNotFoundError as e:
-        # Handle case where python itself isn't found
         console.print(f"[red]Error:[/red] {e}")
-        if venv_python:
-            show_venv_hint(args[0] if args else "")
+        console.print()
+        console.print("[bold]To set up your project:[/bold]")
+        console.print("  [cyan]fastpy install[/cyan]")
         return 1
 
 
