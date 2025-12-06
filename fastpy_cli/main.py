@@ -41,6 +41,7 @@ FASTPY_COMMANDS = {
     "config",
     "doctor",
     "init",
+    "install",
     "libs",
     "setup",
     "setup:env",
@@ -234,12 +235,19 @@ def new(
     project_name: str = typer.Argument(..., help="Name of the project to create"),
     no_git: bool = typer.Option(False, "--no-git", help="Don't initialize a git repository"),
     branch: str = typer.Option("main", "--branch", "-b", help="Branch to clone from"),
+    install: bool = typer.Option(
+        False,
+        "--install",
+        "-i",
+        help="Automatically set up venv, install dependencies, and run setup",
+    ),
 ) -> None:
     """Create a new Fastpy project.
 
     Example:
         fastpy new my-api
         fastpy new my-api --branch dev
+        fastpy new my-api --install  # Create + full setup in one command
     """
     log_info(f"Creating new project: {project_name}")
 
@@ -290,17 +298,104 @@ def new(
     console.print("[green]✓[/green] Project created successfully!")
     console.print()
 
-    # Show next steps
-    console.print("[bold]Next steps:[/bold]")
-    console.print(f"  1. [cyan]cd {project_name}[/cyan]")
-    console.print("  2. [cyan]python3 -m venv venv[/cyan]")
-    console.print(
-        "  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)"
-    )
-    console.print("  4. [cyan]pip install --upgrade pip[/cyan]")
-    console.print("  5. [cyan]pip install -r requirements.txt[/cyan]")
-    console.print("  6. [cyan]fastpy setup[/cyan]  (interactive setup)")
-    console.print("  7. [cyan]fastpy serve[/cyan]")
+    # If --install flag is provided, run the install process
+    if install:
+        console.print("[bold]Running automatic installation...[/bold]")
+        console.print()
+
+        # Change to project directory and run install
+        import os
+
+        original_dir = os.getcwd()
+        os.chdir(project_path)
+
+        try:
+            # Create virtual environment
+            venv_path = project_path / "venv"
+            console.print("[blue]Creating virtual environment...[/blue]")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Creating venv...", total=None)
+                result = run_command([sys.executable, "-m", "venv", "venv"], cwd=project_path)
+                if result.returncode != 0:
+                    console.print("[red]Error:[/red] Failed to create virtual environment")
+                    raise typer.Exit(1)
+                progress.update(task, description="Done!")
+            console.print("[green]✓[/green] Virtual environment created")
+
+            # Determine venv python path
+            if sys.platform == "win32":
+                venv_python = project_path / "venv" / "Scripts" / "python.exe"
+            else:
+                venv_python = project_path / "venv" / "bin" / "python"
+
+            python_cmd = str(venv_python)
+
+            # Upgrade pip
+            console.print("[blue]Upgrading pip...[/blue]")
+            subprocess.run(
+                [python_cmd, "-m", "pip", "install", "--upgrade", "pip"],
+                cwd=project_path,
+                capture_output=True,
+            )
+            console.print("[green]✓[/green] pip upgraded")
+
+            # Install requirements
+            requirements_path = project_path / "requirements.txt"
+            if requirements_path.exists():
+                console.print("[blue]Installing dependencies...[/blue]")
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task("Installing packages...", total=None)
+                    result = subprocess.run(
+                        [python_cmd, "-m", "pip", "install", "-r", "requirements.txt"],
+                        cwd=project_path,
+                        capture_output=True,
+                        text=True,
+                    )
+                    progress.update(task, description="Done!")
+
+                if result.returncode == 0:
+                    console.print("[green]✓[/green] Dependencies installed")
+                else:
+                    console.print("[red]Error:[/red] Failed to install dependencies")
+                    console.print(f"[dim]{result.stderr}[/dim]")
+
+            console.print()
+            console.print("[green]✓[/green] Installation complete!")
+            console.print()
+            console.print("[bold]Next steps:[/bold]")
+            console.print(f"  1. [cyan]cd {project_name}[/cyan]")
+            if sys.platform == "win32":
+                console.print("  2. [cyan]venv\\Scripts\\activate[/cyan]")
+            else:
+                console.print("  2. [cyan]source venv/bin/activate[/cyan]")
+            console.print("  3. [cyan]fastpy setup[/cyan]  (configure database & secrets)")
+            console.print("  4. [cyan]fastpy serve[/cyan]")
+
+        finally:
+            os.chdir(original_dir)
+    else:
+        # Show manual next steps
+        console.print("[bold]Next steps:[/bold]")
+        console.print(f"  1. [cyan]cd {project_name}[/cyan]")
+        console.print("  2. [cyan]fastpy install[/cyan]  (one command setup)")
+        console.print()
+        console.print("[dim]Or manually:[/dim]")
+        console.print("  2. [cyan]python3 -m venv venv[/cyan]")
+        console.print(
+            "  3. [cyan]source venv/bin/activate[/cyan]  (or [cyan]venv\\Scripts\\activate[/cyan] on Windows)"
+        )
+        console.print("  4. [cyan]pip install --upgrade pip[/cyan]")
+        console.print("  5. [cyan]pip install -r requirements.txt[/cyan]")
+        console.print("  6. [cyan]fastpy setup[/cyan]")
+        console.print("  7. [cyan]fastpy serve[/cyan]")
 
     console.print()
     console.print(f"[dim]Documentation: {DOCS_URL}[/dim]")
@@ -1099,6 +1194,141 @@ def doctor() -> None:
     elif not issues:
         console.print()
         console.print("[green]No critical issues found.[/green]")
+
+
+@app.command("install")
+def install_command(
+    skip_setup: bool = typer.Option(False, "--skip-setup", help="Skip running fastpy setup"),
+    skip_venv: bool = typer.Option(False, "--skip-venv", help="Skip virtual environment creation"),
+    requirements: str = typer.Option(
+        "requirements.txt", "--requirements", "-r", help="Requirements file to install"
+    ),
+) -> None:
+    """Install project dependencies and set up environment.
+
+    Automates the setup process by:
+    1. Creating a virtual environment (if it doesn't exist)
+    2. Installing dependencies from requirements.txt
+    3. Running fastpy setup (interactive project configuration)
+
+    This command should be run inside a Fastpy project directory.
+
+    Examples:
+        fastpy install                     # Full install with setup
+        fastpy install --skip-setup        # Install deps only
+        fastpy install -r requirements-dev.txt  # Use different requirements file
+    """
+    from fastpy_cli.setup import is_fastpy_project as check_project
+
+    if not check_project():
+        console.print("[red]Error:[/red] Not inside a Fastpy project.")
+        console.print("[dim]Run this from a directory containing main.py and app/[/dim]")
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(
+        Panel.fit(
+            "[bold blue]Fastpy Project Install[/bold blue]\n"
+            "[dim]Setting up your development environment[/dim]",
+            border_style="blue",
+        )
+    )
+    console.print()
+
+    project_path = Path.cwd()
+
+    # Step 1: Create virtual environment
+    if not skip_venv:
+        venv_path = project_path / "venv"
+        if venv_path.exists():
+            console.print("[green]✓[/green] Virtual environment already exists")
+        else:
+            console.print("[blue]Creating virtual environment...[/blue]")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Creating venv...", total=None)
+                result = run_command([sys.executable, "-m", "venv", "venv"], cwd=project_path)
+                if result.returncode != 0:
+                    console.print("[red]Error:[/red] Failed to create virtual environment")
+                    raise typer.Exit(1)
+                progress.update(task, description="Done!")
+            console.print("[green]✓[/green] Virtual environment created")
+
+    # Determine venv python path
+    if sys.platform == "win32":
+        venv_python = project_path / "venv" / "Scripts" / "python.exe"
+        venv_pip = project_path / "venv" / "Scripts" / "pip.exe"
+    else:
+        venv_python = project_path / "venv" / "bin" / "python"
+        venv_pip = project_path / "venv" / "bin" / "pip"
+
+    # Use venv python if it exists, otherwise use current python
+    python_cmd = str(venv_python) if venv_python.exists() else sys.executable
+    pip_cmd = str(venv_pip) if venv_pip.exists() else f"{python_cmd} -m pip"
+
+    # Step 2: Upgrade pip
+    console.print("[blue]Upgrading pip...[/blue]")
+    result = subprocess.run(
+        [python_cmd, "-m", "pip", "install", "--upgrade", "pip"],
+        cwd=project_path,
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        console.print("[green]✓[/green] pip upgraded")
+    else:
+        console.print("[yellow]⚠[/yellow] Could not upgrade pip (continuing anyway)")
+
+    # Step 3: Install requirements
+    requirements_path = project_path / requirements
+    if requirements_path.exists():
+        console.print(f"[blue]Installing dependencies from {requirements}...[/blue]")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Installing packages...", total=None)
+            result = subprocess.run(
+                [python_cmd, "-m", "pip", "install", "-r", requirements],
+                cwd=project_path,
+                capture_output=True,
+                text=True,
+            )
+            progress.update(task, description="Done!")
+
+        if result.returncode == 0:
+            console.print("[green]✓[/green] Dependencies installed")
+        else:
+            console.print("[red]Error:[/red] Failed to install dependencies")
+            console.print(f"[dim]{result.stderr}[/dim]")
+            raise typer.Exit(1)
+    else:
+        console.print(f"[yellow]⚠[/yellow] {requirements} not found, skipping dependency installation")
+
+    # Step 4: Run setup (optional)
+    if not skip_setup:
+        console.print()
+        console.print("[bold]Running project setup...[/bold]")
+        console.print()
+        # Import and run full_setup
+        from fastpy_cli.setup import full_setup
+
+        full_setup()
+    else:
+        console.print()
+        console.print("[green]✓[/green] Installation complete!")
+        console.print()
+        console.print("[bold]Next steps:[/bold]")
+        if venv_python.exists():
+            if sys.platform == "win32":
+                console.print("  1. Activate venv: [cyan]venv\\Scripts\\activate[/cyan]")
+            else:
+                console.print("  1. Activate venv: [cyan]source venv/bin/activate[/cyan]")
+        console.print("  2. Run setup: [cyan]fastpy setup[/cyan]")
+        console.print("  3. Start server: [cyan]fastpy serve[/cyan]")
 
 
 @app.command("init")
