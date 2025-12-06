@@ -1200,6 +1200,9 @@ def doctor() -> None:
 def install_command(
     skip_setup: bool = typer.Option(False, "--skip-setup", help="Skip running fastpy setup"),
     skip_venv: bool = typer.Option(False, "--skip-venv", help="Skip virtual environment creation"),
+    skip_mysql: bool = typer.Option(
+        False, "--skip-mysql", help="Skip MySQL packages (use for SQLite/PostgreSQL only)"
+    ),
     requirements: str = typer.Option(
         "requirements.txt", "--requirements", "-r", help="Requirements file to install"
     ),
@@ -1216,6 +1219,7 @@ def install_command(
     Examples:
         fastpy install                     # Full install with setup
         fastpy install --skip-setup        # Install deps only
+        fastpy install --skip-mysql        # Skip MySQL packages (for SQLite users)
         fastpy install -r requirements-dev.txt  # Use different requirements file
     """
     from fastpy_cli.setup import is_fastpy_project as check_project
@@ -1284,7 +1288,42 @@ def install_command(
     # Step 3: Install requirements
     requirements_path = project_path / requirements
     if requirements_path.exists():
-        console.print(f"[blue]Installing dependencies from {requirements}...[/blue]")
+        # MySQL packages to skip if --skip-mysql is set
+        mysql_packages = ["mysqlclient", "pymysql", "aiomysql"]
+
+        if skip_mysql:
+            console.print(
+                f"[blue]Installing dependencies from {requirements} (skipping MySQL packages)...[/blue]"
+            )
+            # Read requirements and filter out MySQL packages
+            with open(requirements_path, "r") as f:
+                req_lines = f.readlines()
+
+            filtered_reqs = []
+            for line in req_lines:
+                line_lower = line.lower().strip()
+                # Skip empty lines, comments, and MySQL packages
+                if not line_lower or line_lower.startswith("#"):
+                    continue
+                # Check if it's a MySQL package
+                is_mysql_pkg = any(pkg in line_lower for pkg in mysql_packages)
+                if not is_mysql_pkg:
+                    filtered_reqs.append(line.strip())
+
+            # Create a temporary requirements file
+            import tempfile
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False, dir=project_path
+            ) as tmp_file:
+                tmp_file.write("\n".join(filtered_reqs))
+                tmp_req_path = tmp_file.name
+
+            install_target = tmp_req_path
+        else:
+            console.print(f"[blue]Installing dependencies from {requirements}...[/blue]")
+            install_target = requirements
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -1292,19 +1331,78 @@ def install_command(
         ) as progress:
             task = progress.add_task("Installing packages...", total=None)
             result = subprocess.run(
-                [python_cmd, "-m", "pip", "install", "-r", requirements],
+                [python_cmd, "-m", "pip", "install", "-r", install_target],
                 cwd=project_path,
                 capture_output=True,
                 text=True,
             )
             progress.update(task, description="Done!")
 
+        # Clean up temp file if created
+        if skip_mysql and "tmp_req_path" in locals():
+            try:
+                os.unlink(tmp_req_path)
+            except Exception:
+                pass
+
         if result.returncode == 0:
             console.print("[green]✓[/green] Dependencies installed")
         else:
-            console.print("[red]Error:[/red] Failed to install dependencies")
-            console.print(f"[dim]{result.stderr}[/dim]")
-            raise typer.Exit(1)
+            # Check if it's a MySQL-related error
+            stderr_lower = result.stderr.lower()
+            is_mysql_error = any(
+                x in stderr_lower
+                for x in ["mysqlclient", "mysql_config", "mariadb_config", "mysql.h"]
+            )
+
+            if is_mysql_error:
+                console.print()
+                console.print(
+                    "[yellow]⚠[/yellow] MySQL client installation failed. "
+                    "This is common on systems without MySQL development libraries."
+                )
+                console.print()
+
+                # Detect platform and offer solutions
+                if sys.platform == "darwin":
+                    console.print("[bold]Options:[/bold]")
+                    console.print("  1. Install MySQL client (if using MySQL):")
+                    console.print("     [cyan]brew install mysql-client[/cyan]")
+                    console.print(
+                        "     [cyan]export PATH=\"/opt/homebrew/opt/mysql-client/bin:$PATH\"[/cyan]"
+                    )
+                    console.print(
+                        "     [cyan]export LDFLAGS=\"-L/opt/homebrew/opt/mysql-client/lib\"[/cyan]"
+                    )
+                    console.print(
+                        "     [cyan]export CPPFLAGS=\"-I/opt/homebrew/opt/mysql-client/include\"[/cyan]"
+                    )
+                    console.print()
+                    console.print("  2. Skip MySQL packages (if using SQLite/PostgreSQL):")
+                    console.print("     [cyan]fastpy install --skip-mysql[/cyan]")
+                elif sys.platform == "linux":
+                    console.print("[bold]Options:[/bold]")
+                    console.print("  1. Install MySQL client (Debian/Ubuntu):")
+                    console.print(
+                        "     [cyan]sudo apt-get install libmysqlclient-dev python3-dev[/cyan]"
+                    )
+                    console.print("  1. Install MySQL client (RHEL/CentOS):")
+                    console.print("     [cyan]sudo yum install mysql-devel python3-devel[/cyan]")
+                    console.print()
+                    console.print("  2. Skip MySQL packages (if using SQLite/PostgreSQL):")
+                    console.print("     [cyan]fastpy install --skip-mysql[/cyan]")
+                else:
+                    console.print("[bold]Options:[/bold]")
+                    console.print("  1. Install MySQL client from https://dev.mysql.com/downloads/")
+                    console.print("  2. Skip MySQL packages: [cyan]fastpy install --skip-mysql[/cyan]")
+
+                console.print()
+                console.print("[dim]If you only need SQLite for development, use --skip-mysql[/dim]")
+                raise typer.Exit(1)
+            else:
+                console.print("[red]Error:[/red] Failed to install dependencies")
+                console.print(f"[dim]{result.stderr}[/dim]")
+                raise typer.Exit(1)
     else:
         console.print(f"[yellow]⚠[/yellow] {requirements} not found, skipping dependency installation")
 
