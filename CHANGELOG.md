@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.2] - 2025-12-06
+
+### Added
+
+- **Google Gemini Provider**: Full support for Google's Gemini 2.0 Flash model
+  - Configure with `fastpy ai:config -p google`
+  - Set `GOOGLE_API_KEY` environment variable
+  - Default model: `gemini-2.0-flash`
+
+- **Groq Provider**: Support for Groq's fast inference API
+  - Configure with `fastpy ai:config -p groq`
+  - Set `GROQ_API_KEY` environment variable
+  - Default model: `llama-3.3-70b-versatile`
+
+### Improved
+
+- **ai:config Command**: Now suggests running `ai:init` when switching to providers that support AI assistant configuration (Claude, Gemini)
+- **Provider Selection**: Expanded from 3 to 5 AI providers (anthropic, openai, google, groq, ollama)
+
+---
+
 ## [1.1.1] - 2025-12-06
 
 ### Added
