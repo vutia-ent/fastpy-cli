@@ -2,12 +2,11 @@
 Hash Facade - Static interface to hash manager.
 """
 
-from typing import Optional, Type
+from typing import Optional
 
 from fastpy_cli.libs.hashing.hasher import Hasher
 from fastpy_cli.libs.hashing.manager import HashManager
 from fastpy_cli.libs.support.container import container
-
 
 # Register the hash manager in the container
 container.singleton("hash", lambda c: HashManager())
@@ -129,7 +128,7 @@ class Hash:
         cls._manager().configure(driver, config)
 
     @classmethod
-    def extend(cls, name: str, driver_class: Type[Hasher]) -> None:
+    def extend(cls, name: str, driver_class: type[Hasher]) -> None:
         """
         Register a custom hasher.
 

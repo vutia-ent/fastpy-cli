@@ -93,11 +93,7 @@ def is_safe_command(command: str) -> bool:
     command = command.strip()
 
     # Check against allowlist of safe prefixes
-    for prefix in SAFE_COMMAND_PREFIXES:
-        if command.startswith(prefix):
-            return True
-
-    return False
+    return any(command.startswith(prefix) for prefix in SAFE_COMMAND_PREFIXES)
 
 
 def validate_command(command: str) -> tuple[bool, str]:
@@ -166,14 +162,14 @@ def safe_execute_command(
 
         if not is_safe_command(command):
             raise ValueError(
-                f"Command not in allowlist. Only Fastpy CLI commands are allowed."
+                "Command not in allowlist. Only Fastpy CLI commands are allowed."
             )
 
     # Parse command into arguments (safe, no shell injection)
     try:
         args = shlex.split(command)
     except ValueError as e:
-        raise ValueError(f"Invalid command syntax: {e}")
+        raise ValueError(f"Invalid command syntax: {e}") from e
 
     log_debug(f"Executing: {args}")
 

@@ -3,7 +3,7 @@ Base Notification class.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class Notification(ABC):
@@ -41,7 +41,7 @@ class Notification(ABC):
     delay: int = 0
 
     @abstractmethod
-    def via(self, notifiable: Any) -> List[str]:
+    def via(self, notifiable: Any) -> list[str]:
         """
         Get the notification's delivery channels.
 
@@ -53,7 +53,7 @@ class Notification(ABC):
         """
         pass
 
-    def to_mail(self, notifiable: Any) -> Optional[Dict[str, Any]]:
+    def to_mail(self, notifiable: Any) -> Optional[dict[str, Any]]:
         """
         Get the mail representation.
 
@@ -62,7 +62,7 @@ class Notification(ABC):
         """
         return None
 
-    def to_database(self, notifiable: Any) -> Optional[Dict[str, Any]]:
+    def to_database(self, notifiable: Any) -> Optional[dict[str, Any]]:
         """
         Get the database representation.
 
@@ -71,7 +71,7 @@ class Notification(ABC):
         """
         return None
 
-    def to_slack(self, notifiable: Any) -> Optional[Dict[str, Any]]:
+    def to_slack(self, notifiable: Any) -> Optional[dict[str, Any]]:
         """
         Get the Slack representation.
 
@@ -89,7 +89,7 @@ class Notification(ABC):
         """
         return None
 
-    def to_broadcast(self, notifiable: Any) -> Optional[Dict[str, Any]]:
+    def to_broadcast(self, notifiable: Any) -> Optional[dict[str, Any]]:
         """
         Get the broadcast (WebSocket) representation.
 
@@ -98,7 +98,7 @@ class Notification(ABC):
         """
         return None
 
-    def to_array(self, notifiable: Any) -> Dict[str, Any]:
+    def to_array(self, notifiable: Any) -> dict[str, Any]:
         """
         Get the array representation.
 

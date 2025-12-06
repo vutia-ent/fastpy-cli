@@ -4,7 +4,8 @@ Facade Pattern - Static proxy to underlying services.
 Inspired by Laravel's Facade pattern.
 """
 
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Optional, TypeVar
+
 from fastpy_cli.libs.support.container import Container, container
 
 T = TypeVar("T")
@@ -75,7 +76,7 @@ class Facade:
         """Get the container instance."""
         return container
 
-    def __class_getitem__(cls, item: Type[T]) -> Type[T]:
+    def __class_getitem__(cls, item: type[T]) -> type[T]:
         """Support for generic type hints."""
         return item
 
@@ -91,10 +92,10 @@ class FacadeManager:
     Manages facade resolution and testing utilities.
     """
 
-    _facades: dict[str, Type[Facade]] = {}
+    _facades: dict[str, type[Facade]] = {}
 
     @classmethod
-    def register(cls, name: str, facade: Type[Facade]) -> None:
+    def register(cls, name: str, facade: type[Facade]) -> None:
         """Register a facade."""
         cls._facades[name] = facade
 
@@ -105,7 +106,7 @@ class FacadeManager:
             facade.clear_resolved_instance()
 
     @classmethod
-    def fake(cls, facade: Type[Facade], fake_instance: Any) -> Any:
+    def fake(cls, facade: type[Facade], fake_instance: Any) -> Any:
         """
         Replace a facade with a fake for testing.
 

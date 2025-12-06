@@ -5,28 +5,28 @@ Mail Drivers - Different email transport implementations.
 import smtplib
 import ssl
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Any, Dict, List, Optional
-from dataclasses import dataclass
+from typing import Any, Optional
 
 
 @dataclass
 class MailMessage:
     """Email message data."""
 
-    to: List[str]
+    to: list[str]
     subject: str
     html: Optional[str] = None
     text: Optional[str] = None
     from_address: Optional[str] = None
     from_name: Optional[str] = None
-    cc: Optional[List[str]] = None
-    bcc: Optional[List[str]] = None
+    cc: Optional[list[str]] = None
+    bcc: Optional[list[str]] = None
     reply_to: Optional[str] = None
-    attachments: Optional[List[Dict[str, Any]]] = None
-    headers: Optional[Dict[str, str]] = None
+    attachments: Optional[list[dict[str, Any]]] = None
+    headers: Optional[dict[str, str]] = None
 
 
 class MailDriver(ABC):

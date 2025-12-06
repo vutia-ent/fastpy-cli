@@ -3,13 +3,12 @@ Queue Drivers - Different queue backend implementations.
 """
 
 import json
-import time
 import threading
+import time
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional
 from collections import deque
-import uuid
+from datetime import datetime, timedelta
+from typing import Optional
 
 from fastpy_cli.libs.queue.job import Job, QueuedJob
 
@@ -64,7 +63,7 @@ class SyncDriver(QueueDriver):
     """
 
     def __init__(self):
-        self._processed: List[str] = []
+        self._processed: list[str] = []
 
     def push(self, job: Job, queue: str = "default") -> str:
         """Execute job immediately."""
@@ -110,8 +109,8 @@ class MemoryDriver(QueueDriver):
     """
 
     def __init__(self):
-        self._queues: Dict[str, deque] = {}
-        self._delayed: Dict[str, List[tuple]] = {}
+        self._queues: dict[str, deque] = {}
+        self._delayed: dict[str, list[tuple]] = {}
         self._lock = threading.Lock()
 
     def _get_queue(self, queue: str) -> deque:
@@ -237,8 +236,8 @@ class RedisDriver(QueueDriver):
                     password=self.password,
                     decode_responses=False,
                 )
-            except ImportError:
-                raise ImportError("Redis driver requires redis package. Install with: pip install redis")
+            except ImportError as err:
+                raise ImportError("Redis driver requires redis package. Install with: pip install redis") from err
         return self._client
 
     def _queue_key(self, queue: str) -> str:
@@ -354,7 +353,16 @@ class DatabaseDriver(QueueDriver):
         """Get SQLAlchemy engine."""
         if self._engine is None:
             try:
-                from sqlalchemy import create_engine, Table, Column, String, Integer, LargeBinary, DateTime, MetaData
+                from sqlalchemy import (
+                    Column,
+                    DateTime,
+                    Integer,
+                    LargeBinary,
+                    MetaData,
+                    String,
+                    Table,
+                    create_engine,
+                )
 
                 self._engine = create_engine(self.connection_string)
                 metadata = MetaData()
@@ -373,8 +381,8 @@ class DatabaseDriver(QueueDriver):
 
                 metadata.create_all(self._engine)
 
-            except ImportError:
-                raise ImportError("Database driver requires sqlalchemy. Install with: pip install sqlalchemy")
+            except ImportError as err:
+                raise ImportError("Database driver requires sqlalchemy. Install with: pip install sqlalchemy") from err
 
         return self._engine
 
@@ -420,7 +428,7 @@ class DatabaseDriver(QueueDriver):
 
     def pop(self, queue: str = "default") -> Optional[QueuedJob]:
         """Pop the next job from the queue."""
-        from sqlalchemy import select, or_
+        from sqlalchemy import or_, select
 
         engine = self._get_engine()
 

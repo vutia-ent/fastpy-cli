@@ -2,17 +2,15 @@
 Notification Manager implementation.
 """
 
-from typing import Any, Dict, List, Optional, Union
 import uuid
+from typing import Any, Optional, Union
 
-from fastpy_cli.libs.notifications.notification import Notification
 from fastpy_cli.libs.notifications.channels import (
-    NotificationChannel,
-    MailChannel,
     DatabaseChannel,
-    SlackChannel,
-    SMSChannel,
+    MailChannel,
+    NotificationChannel,
 )
+from fastpy_cli.libs.notifications.notification import Notification
 
 
 class AnonymousNotifiable:
@@ -26,7 +24,7 @@ class AnonymousNotifiable:
     """
 
     def __init__(self):
-        self._routes: Dict[str, Any] = {}
+        self._routes: dict[str, Any] = {}
 
     def route(self, channel: str, route: Any) -> "AnonymousNotifiable":
         """Add a route for a channel."""
@@ -55,7 +53,7 @@ class NotificationManager:
     Notification manager for sending notifications through multiple channels.
     """
 
-    _channels: Dict[str, NotificationChannel] = {}
+    _channels: dict[str, NotificationChannel] = {}
 
     def __init__(self):
         # Register default channels
@@ -79,7 +77,7 @@ class NotificationManager:
     @classmethod
     def send(
         cls,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> bool:
         """
@@ -130,7 +128,7 @@ class NotificationManager:
     @classmethod
     def send_now(
         cls,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> bool:
         """Send a notification immediately (bypass queue)."""
@@ -140,7 +138,7 @@ class NotificationManager:
     def send_later(
         cls,
         delay: int,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> str:
         """Queue a notification to be sent after a delay."""

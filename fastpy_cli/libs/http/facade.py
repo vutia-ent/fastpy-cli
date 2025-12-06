@@ -2,11 +2,10 @@
 HTTP Facade - Static interface to HTTP client.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastpy_cli.libs.http.client import HttpClient, HttpResponse, PendingRequest
 from fastpy_cli.libs.support.container import container
-
 
 # Register the HTTP client in the container
 container.singleton("http", lambda c: HttpClient())
@@ -47,7 +46,7 @@ class Http:
         return cls._client().base_url(url)
 
     @classmethod
-    def with_headers(cls, headers: Dict[str, str]) -> PendingRequest:
+    def with_headers(cls, headers: dict[str, str]) -> PendingRequest:
         """Create a request with headers."""
         return cls._client().with_headers(headers)
 
@@ -97,7 +96,7 @@ class Http:
         return cls._client().async_()
 
     @classmethod
-    def get(cls, url: str, params: Optional[Dict[str, Any]] = None) -> HttpResponse:
+    def get(cls, url: str, params: Optional[dict[str, Any]] = None) -> HttpResponse:
         """Make a GET request."""
         return cls._client().get(url, params)
 
@@ -105,7 +104,7 @@ class Http:
     def post(
         cls,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a POST request."""
@@ -115,7 +114,7 @@ class Http:
     def put(
         cls,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a PUT request."""
@@ -125,7 +124,7 @@ class Http:
     def patch(
         cls,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a PATCH request."""
@@ -148,7 +147,7 @@ class Http:
 
     # Testing utilities
     @classmethod
-    def fake(cls, responses: Optional[Dict[str, Any]] = None) -> "HttpFake":
+    def fake(cls, responses: Optional[dict[str, Any]] = None) -> "HttpFake":
         """
         Fake HTTP requests for testing.
 
@@ -168,7 +167,7 @@ class HttpFake:
     Fake HTTP client for testing.
     """
 
-    def __init__(self, responses: Dict[str, Any]):
+    def __init__(self, responses: dict[str, Any]):
         self._responses = responses
         self._recorded: list = []
 

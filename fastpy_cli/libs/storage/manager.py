@@ -3,9 +3,9 @@ Storage Manager implementation.
 """
 
 from datetime import datetime
-from typing import BinaryIO, Dict, List, Optional, Union
+from typing import BinaryIO, Optional, Union
 
-from fastpy_cli.libs.storage.drivers import StorageDriver, LocalDriver, MemoryDriver
+from fastpy_cli.libs.storage.drivers import LocalDriver, MemoryDriver, StorageDriver
 
 
 class StorageManager:
@@ -13,7 +13,7 @@ class StorageManager:
     Storage manager supporting multiple disks.
     """
 
-    _disks: Dict[str, StorageDriver] = {}
+    _disks: dict[str, StorageDriver] = {}
     _default_disk: str = "local"
 
     def __init__(self):
@@ -113,17 +113,17 @@ class StorageManager:
         return cls.get_default_disk().prepend(path, data)
 
     @classmethod
-    def files(cls, directory: str = "") -> List[str]:
+    def files(cls, directory: str = "") -> list[str]:
         """Get all files in a directory."""
         return cls.get_default_disk().files(directory)
 
     @classmethod
-    def all_files(cls, directory: str = "") -> List[str]:
+    def all_files(cls, directory: str = "") -> list[str]:
         """Get all files recursively."""
         return cls.get_default_disk().all_files(directory)
 
     @classmethod
-    def directories(cls, directory: str = "") -> List[str]:
+    def directories(cls, directory: str = "") -> list[str]:
         """Get all directories."""
         return cls.get_default_disk().directories(directory)
 

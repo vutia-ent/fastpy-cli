@@ -2,11 +2,10 @@
 Event Facade - Static interface to event dispatcher.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Optional, Union
 
 from fastpy_cli.libs.events.dispatcher import EventDispatcher
 from fastpy_cli.libs.support.container import container
-
 
 # Register the event dispatcher in the container
 container.singleton("events", lambda c: EventDispatcher())
@@ -39,7 +38,7 @@ class Event:
     @classmethod
     def listen(
         cls,
-        event: Union[str, List[str]],
+        event: Union[str, list[str]],
         listener: Optional[Callable] = None,
     ) -> Callable:
         """Register an event listener."""
@@ -49,9 +48,9 @@ class Event:
     def dispatch(
         cls,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
         halt: bool = False,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """Dispatch an event."""
         return cls._dispatcher().dispatch(event, payload, halt)
 
@@ -59,13 +58,13 @@ class Event:
     def dispatch_async(
         cls,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ) -> str:
         """Dispatch an event asynchronously."""
         return cls._dispatcher().dispatch_async(event, payload)
 
     @classmethod
-    def subscribe(cls, subscriber: Union[Type, object]) -> None:
+    def subscribe(cls, subscriber: Union[type, object]) -> None:
         """Register an event subscriber."""
         cls._dispatcher().subscribe(subscriber)
 
@@ -88,13 +87,13 @@ class Event:
     def until(
         cls,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ) -> Any:
         """Dispatch until first response."""
         return cls._dispatcher().until(event, payload)
 
     @classmethod
-    def push(cls, event: str, payload: Optional[Dict[str, Any]] = None) -> None:
+    def push(cls, event: str, payload: Optional[dict[str, Any]] = None) -> None:
         """Push an event to the queue."""
         cls._dispatcher().push(event, payload)
 
@@ -118,12 +117,12 @@ class EventFake:
     """Fake event dispatcher for testing."""
 
     def __init__(self):
-        self._dispatched: List[tuple] = []
-        self._listeners: Dict[str, List[Callable]] = {}
+        self._dispatched: list[tuple] = []
+        self._listeners: dict[str, list[Callable]] = {}
 
     def listen(
         self,
-        event: Union[str, List[str]],
+        event: Union[str, list[str]],
         listener: Optional[Callable] = None,
     ) -> Callable:
         events = [event] if isinstance(event, str) else event
@@ -147,21 +146,21 @@ class EventFake:
     def dispatch(
         self,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
         halt: bool = False,
-    ) -> List[Any]:
+    ) -> list[Any]:
         self._dispatched.append((event, payload or {}))
         return []
 
     def dispatch_async(
         self,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ) -> str:
         self._dispatched.append((event, payload or {}))
         return "fake-job-id"
 
-    def subscribe(self, subscriber: Union[Type, object]) -> None:
+    def subscribe(self, subscriber: Union[type, object]) -> None:
         pass
 
     def has_listeners(self, event: str) -> bool:
@@ -175,11 +174,11 @@ class EventFake:
         self._listeners.clear()
         self._dispatched.clear()
 
-    def until(self, event: str, payload: Optional[Dict[str, Any]] = None) -> Any:
+    def until(self, event: str, payload: Optional[dict[str, Any]] = None) -> Any:
         self._dispatched.append((event, payload or {}))
         return None
 
-    def push(self, event: str, payload: Optional[Dict[str, Any]] = None) -> None:
+    def push(self, event: str, payload: Optional[dict[str, Any]] = None) -> None:
         self.dispatch_async(event, payload)
 
     def assert_dispatched(self, event: str, count: Optional[int] = None) -> bool:
@@ -210,15 +209,14 @@ class EventFake:
     def assert_dispatched_with(self, event: str, **kwargs) -> bool:
         """Assert an event was dispatched with specific data."""
         for e, payload in self._dispatched:
-            if e == event:
-                if all(payload.get(k) == v for k, v in kwargs.items()):
-                    return True
+            if e == event and all(payload.get(k) == v for k, v in kwargs.items()):
+                return True
 
         raise AssertionError(
             f"Event '{event}' was not dispatched with {kwargs}"
         )
 
     @property
-    def dispatched(self) -> List[tuple]:
+    def dispatched(self) -> list[tuple]:
         """Get all dispatched events."""
         return self._dispatched

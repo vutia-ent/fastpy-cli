@@ -4,11 +4,11 @@ Job base classes.
 
 import json
 import pickle
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Type
-import uuid
+from typing import Any, Callable, Optional
 
 
 class Job(ABC):
@@ -42,16 +42,16 @@ class Job(ABC):
         """Execute the job."""
         pass
 
-    def failed(self, exception: Exception) -> None:
-        """Handle a job failure."""
+    def failed(self, exception: Exception) -> None:  # noqa: B027
+        """Handle a job failure. Override in subclass."""
         pass
 
-    def before(self) -> None:
-        """Called before the job executes."""
+    def before(self) -> None:  # noqa: B027
+        """Called before the job executes. Override in subclass."""
         pass
 
-    def after(self) -> None:
-        """Called after the job executes successfully."""
+    def after(self) -> None:  # noqa: B027
+        """Called after the job executes successfully. Override in subclass."""
         pass
 
     @property
@@ -115,7 +115,7 @@ class Job(ABC):
                 )
             return job
         except Exception as e:
-            raise ValueError(f"Failed to deserialize job: {e}")
+            raise ValueError(f"Failed to deserialize job: {e}") from e
 
 
 class SerializableJob(Job):
@@ -128,9 +128,9 @@ class SerializableJob(Job):
 
     # SECURITY: Allowlist of modules that can be deserialized
     # Override in your application to add your job modules
-    ALLOWED_MODULES: List[str] = []
+    ALLOWED_MODULES: list[str] = []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert job to dictionary."""
         return {
             "class": f"{self.__class__.__module__}.{self.__class__.__name__}",
@@ -175,7 +175,7 @@ class SerializableJob(Job):
             module = importlib.import_module(module_path)
             job_class = getattr(module, class_name)
         except (ImportError, AttributeError) as e:
-            raise ValueError(f"Cannot load job class '{class_path}': {e}")
+            raise ValueError(f"Cannot load job class '{class_path}': {e}") from e
 
         # SECURITY: Verify the class is a SerializableJob subclass
         if not issubclass(job_class, SerializableJob):
@@ -218,7 +218,7 @@ class JobBatch:
     """A batch of jobs to be processed together."""
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    jobs: List[Job] = field(default_factory=list)
+    jobs: list[Job] = field(default_factory=list)
     pending_jobs: int = 0
     failed_jobs: int = 0
     finished_callback: Optional[Callable[[], None]] = None

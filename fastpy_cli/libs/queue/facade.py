@@ -2,13 +2,12 @@
 Queue Facade - Static interface to queue manager.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
-from fastpy_cli.libs.queue.job import Job, JobBatch, QueuedJob
-from fastpy_cli.libs.queue.manager import QueueManager, PendingDispatch
 from fastpy_cli.libs.queue.drivers import QueueDriver
+from fastpy_cli.libs.queue.job import Job, JobBatch, QueuedJob
+from fastpy_cli.libs.queue.manager import PendingDispatch, QueueManager
 from fastpy_cli.libs.support.container import container
-
 
 # Register the queue manager in the container
 container.singleton("queue", lambda c: QueueManager())
@@ -57,7 +56,7 @@ class Queue:
         return cls._manager().using(connection)
 
     @classmethod
-    def push(cls, job: Union[Job, Dict[str, Any]], queue: str = "default") -> str:
+    def push(cls, job: Union[Job, dict[str, Any]], queue: str = "default") -> str:
         """Push a job onto the queue."""
         return cls._manager().push(job, queue)
 
@@ -67,17 +66,17 @@ class Queue:
         return cls._manager().later(delay, job, queue)
 
     @classmethod
-    def bulk(cls, jobs: List[Job], queue: str = "default") -> List[str]:
+    def bulk(cls, jobs: list[Job], queue: str = "default") -> list[str]:
         """Push multiple jobs onto the queue."""
         return cls._manager().bulk(jobs, queue)
 
     @classmethod
-    def chain(cls, jobs: List[Job]) -> str:
+    def chain(cls, jobs: list[Job]) -> str:
         """Chain jobs to run sequentially."""
         return cls._manager().chain(jobs)
 
     @classmethod
-    def batch(cls, jobs: List[Job]) -> JobBatch:
+    def batch(cls, jobs: list[Job]) -> JobBatch:
         """Create a batch of jobs."""
         return cls._manager().batch(jobs)
 
@@ -144,10 +143,10 @@ class QueueFake:
     """
 
     def __init__(self):
-        self._pushed: List[Job] = []
-        self._delayed: List[tuple] = []
+        self._pushed: list[Job] = []
+        self._delayed: list[tuple] = []
 
-    def push(self, job: Union[Job, Dict[str, Any]], queue: str = "default") -> str:
+    def push(self, job: Union[Job, dict[str, Any]], queue: str = "default") -> str:
         """Record a pushed job."""
         if isinstance(job, dict):
             from fastpy_cli.libs.queue.manager import _DictJob
@@ -160,14 +159,14 @@ class QueueFake:
         self._delayed.append((delay, job))
         return job.job_id
 
-    def bulk(self, jobs: List[Job], queue: str = "default") -> List[str]:
+    def bulk(self, jobs: list[Job], queue: str = "default") -> list[str]:
         return [self.push(job, queue) for job in jobs]
 
-    def chain(self, jobs: List[Job]) -> str:
+    def chain(self, jobs: list[Job]) -> str:
         from fastpy_cli.libs.queue.manager import _ChainJob
         return self.push(_ChainJob(jobs))
 
-    def batch(self, jobs: List[Job]) -> JobBatch:
+    def batch(self, jobs: list[Job]) -> JobBatch:
         batch = JobBatch()
         for job in jobs:
             batch.add(job)
@@ -219,9 +218,10 @@ class QueueFake:
     def assert_pushed_with(self, job_class: type, **kwargs) -> bool:
         """Assert a job was pushed with specific attributes."""
         for job in self._pushed:
-            if isinstance(job, job_class):
-                if all(getattr(job, k, None) == v for k, v in kwargs.items()):
-                    return True
+            if isinstance(job, job_class) and all(
+                getattr(job, k, None) == v for k, v in kwargs.items()
+            ):
+                return True
 
         raise AssertionError(
             f"No {job_class.__name__} job with {kwargs} was pushed"
@@ -234,11 +234,11 @@ class QueueFake:
         return True
 
     @property
-    def pushed(self) -> List[Job]:
+    def pushed(self) -> list[Job]:
         """Get pushed jobs."""
         return self._pushed
 
     @property
-    def delayed(self) -> List[tuple]:
+    def delayed(self) -> list[tuple]:
         """Get delayed jobs."""
         return self._delayed

@@ -30,14 +30,14 @@ Usage:
     directories = Storage.directories('/')
 """
 
-from fastpy_cli.libs.storage.manager import StorageManager
-from fastpy_cli.libs.storage.facade import Storage
 from fastpy_cli.libs.storage.drivers import (
-    StorageDriver,
     LocalDriver,
-    S3Driver,
     MemoryDriver,
+    S3Driver,
+    StorageDriver,
 )
+from fastpy_cli.libs.storage.facade import Storage
+from fastpy_cli.libs.storage.manager import StorageManager
 
 __all__ = [
     "Storage",

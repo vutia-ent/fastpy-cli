@@ -3,14 +3,12 @@ Cache Drivers - Different cache backend implementations.
 """
 
 import hashlib
-import json
-import os
 import pickle
+import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-import threading
+from typing import Any, Callable, Optional
 
 
 class CacheDriver(ABC):
@@ -41,18 +39,15 @@ class CacheDriver(ABC):
         """Check if a key exists in the cache."""
         pass
 
-    def get_many(self, keys: List[str]) -> Dict[str, Any]:
+    def get_many(self, keys: list[str]) -> dict[str, Any]:
         """Get multiple values from the cache."""
         return {key: self.get(key) for key in keys}
 
-    def put_many(self, values: Dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def put_many(self, values: dict[str, Any], ttl: Optional[int] = None) -> bool:
         """Store multiple values in the cache."""
-        for key, value in values.items():
-            if not self.put(key, value, ttl):
-                return False
-        return True
+        return all(self.put(key, value, ttl) for key, value in values.items())
 
-    def forget_many(self, keys: List[str]) -> bool:
+    def forget_many(self, keys: list[str]) -> bool:
         """Remove multiple values from the cache."""
         for key in keys:
             self.forget(key)
@@ -93,7 +88,7 @@ class MemoryDriver(CacheDriver):
     """In-memory cache driver."""
 
     def __init__(self):
-        self._cache: Dict[str, tuple] = {}
+        self._cache: dict[str, tuple] = {}
         self._lock = threading.Lock()
 
     def get(self, key: str) -> Any:
@@ -227,10 +222,10 @@ class RedisDriver(CacheDriver):
                     db=self.db,
                     password=self.password,
                 )
-            except ImportError:
+            except ImportError as err:
                 raise ImportError(
                     "Redis driver requires redis package. Install with: pip install redis"
-                )
+                ) from err
         return self._client
 
     def _prefixed(self, key: str) -> str:
@@ -280,7 +275,7 @@ class RedisDriver(CacheDriver):
         client = self._get_client()
         return client.decrby(self._prefixed(key), value)
 
-    def get_many(self, keys: List[str]) -> Dict[str, Any]:
+    def get_many(self, keys: list[str]) -> dict[str, Any]:
         client = self._get_client()
         prefixed_keys = [self._prefixed(k) for k in keys]
         values = client.mget(prefixed_keys)

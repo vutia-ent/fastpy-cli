@@ -5,10 +5,10 @@ HTTP Client implementation.
 import ipaddress
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 from urllib.parse import urlparse
-import httpx
 
+import httpx
 
 # Private/internal IP ranges that should be blocked for SSRF protection
 BLOCKED_IP_RANGES = [
@@ -46,7 +46,7 @@ def is_safe_url(url: str, allow_private: bool = False) -> tuple[bool, str]:
 
         # Check for localhost variants
         if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
-            return False, f"Blocked: localhost access not allowed"
+            return False, "Blocked: localhost access not allowed"
 
         # Try to resolve and check IP
         try:
@@ -110,7 +110,7 @@ class HttpResponse:
         return 500 <= self.status < 600
 
     @property
-    def headers(self) -> Dict[str, str]:
+    def headers(self) -> dict[str, str]:
         """Get response headers."""
         return dict(self._response.headers)
 
@@ -145,7 +145,7 @@ class HttpResponse:
             self._response.raise_for_status()
         return self
 
-    def collect(self) -> List[Any]:
+    def collect(self) -> list[Any]:
         """Parse JSON response as list."""
         data = self.json()
         return data if isinstance(data, list) else [data]
@@ -161,14 +161,14 @@ class PendingRequest:
     """
 
     _base_url: str = ""
-    _headers: Dict[str, str] = field(default_factory=dict)
+    _headers: dict[str, str] = field(default_factory=dict)
     _timeout: float = 30.0
     _retries: int = 0
     _retry_delay: float = 1.0
     _verify_ssl: bool = True
     _auth: Optional[tuple] = None
     _bearer_token: Optional[str] = None
-    _query: Dict[str, Any] = field(default_factory=dict)
+    _query: dict[str, Any] = field(default_factory=dict)
     _async_mode: bool = False
     _allow_private_ips: bool = False  # SSRF protection
 
@@ -177,7 +177,7 @@ class PendingRequest:
         self._base_url = url.rstrip("/")
         return self
 
-    def with_headers(self, headers: Dict[str, str]) -> "PendingRequest":
+    def with_headers(self, headers: dict[str, str]) -> "PendingRequest":
         """Add headers to the request."""
         self._headers.update(headers)
         return self
@@ -209,7 +209,7 @@ class PendingRequest:
         self._auth = (username, password)
         return self
 
-    def with_query(self, params: Dict[str, Any]) -> "PendingRequest":
+    def with_query(self, params: dict[str, Any]) -> "PendingRequest":
         """Add query parameters."""
         self._query.update(params)
         return self
@@ -341,7 +341,7 @@ class PendingRequest:
 
         raise last_exception or RuntimeError("Request failed")
 
-    def get(self, url: str, params: Optional[Dict[str, Any]] = None) -> HttpResponse:
+    def get(self, url: str, params: Optional[dict[str, Any]] = None) -> HttpResponse:
         """Make a GET request."""
         if self._async_mode:
             raise RuntimeError("Use 'await' with async mode")
@@ -350,7 +350,7 @@ class PendingRequest:
     def post(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a POST request."""
@@ -361,7 +361,7 @@ class PendingRequest:
     def put(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a PUT request."""
@@ -372,7 +372,7 @@ class PendingRequest:
     def patch(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a PATCH request."""
@@ -399,14 +399,14 @@ class PendingRequest:
         return self._make_request("OPTIONS", url)
 
     # Async methods
-    async def aget(self, url: str, params: Optional[Dict[str, Any]] = None) -> HttpResponse:
+    async def aget(self, url: str, params: Optional[dict[str, Any]] = None) -> HttpResponse:
         """Make an async GET request."""
         return await self._make_async_request("GET", url, params=params or {})
 
     async def apost(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make an async POST request."""
@@ -415,7 +415,7 @@ class PendingRequest:
     async def aput(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make an async PUT request."""
@@ -424,7 +424,7 @@ class PendingRequest:
     async def apatch(
         self,
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make an async PATCH request."""
@@ -451,7 +451,7 @@ class HttpClient:
         return PendingRequest().base_url(url)
 
     @staticmethod
-    def with_headers(headers: Dict[str, str]) -> PendingRequest:
+    def with_headers(headers: dict[str, str]) -> PendingRequest:
         """Create a request with headers."""
         return PendingRequest().with_headers(headers)
 
@@ -481,14 +481,14 @@ class HttpClient:
         return PendingRequest().async_()
 
     @staticmethod
-    def get(url: str, params: Optional[Dict[str, Any]] = None) -> HttpResponse:
+    def get(url: str, params: Optional[dict[str, Any]] = None) -> HttpResponse:
         """Make a GET request."""
         return PendingRequest().get(url, params)
 
     @staticmethod
     def post(
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a POST request."""
@@ -497,7 +497,7 @@ class HttpClient:
     @staticmethod
     def put(
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a PUT request."""
@@ -506,7 +506,7 @@ class HttpClient:
     @staticmethod
     def patch(
         url: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
         json: Optional[Any] = None,
     ) -> HttpResponse:
         """Make a PATCH request."""

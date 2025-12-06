@@ -42,16 +42,16 @@ Usage:
         .notify(OrderShippedNotification(order))
 """
 
-from fastpy_cli.libs.notifications.notification import Notification
-from fastpy_cli.libs.notifications.manager import NotificationManager, AnonymousNotifiable
-from fastpy_cli.libs.notifications.facade import Notify
 from fastpy_cli.libs.notifications.channels import (
-    NotificationChannel,
-    MailChannel,
     DatabaseChannel,
+    MailChannel,
+    NotificationChannel,
     SlackChannel,
     SMSChannel,
 )
+from fastpy_cli.libs.notifications.facade import Notify
+from fastpy_cli.libs.notifications.manager import AnonymousNotifiable, NotificationManager
+from fastpy_cli.libs.notifications.notification import Notification
 
 __all__ = [
     "Notify",

@@ -2,10 +2,10 @@
 Configuration Manager - Centralized configuration access.
 """
 
+import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
-import json
+from typing import Any, Optional, Union
 
 try:
     import tomllib
@@ -32,7 +32,7 @@ class Config:
     """
 
     _instance: Optional["Config"] = None
-    _config: Dict[str, Any]
+    _config: dict[str, Any]
 
     def __new__(cls) -> "Config":
         """Singleton pattern."""
@@ -41,7 +41,7 @@ class Config:
             cls._instance._config = {}
         return cls._instance
 
-    def load(self, config: Dict[str, Any]) -> "Config":
+    def load(self, config: dict[str, Any]) -> "Config":
         """Load configuration from a dictionary."""
         self._merge(self._config, config)
         return self
@@ -146,11 +146,11 @@ class Config:
         """Check if a configuration key exists."""
         return self.get(key) is not None
 
-    def all(self) -> Dict[str, Any]:
+    def all(self) -> dict[str, Any]:
         """Get all configuration."""
         return self._config.copy()
 
-    def _merge(self, base: Dict, update: Dict) -> Dict:
+    def _merge(self, base: dict, update: dict) -> dict:
         """Deep merge two dictionaries."""
         for key, value in update.items():
             if key in base and isinstance(base[key], dict) and isinstance(value, dict):

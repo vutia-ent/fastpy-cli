@@ -26,9 +26,9 @@ Supported Drivers:
 """
 
 from fastpy_cli.libs.encryption.encrypter import (
+    AESEncrypter,
     Encrypter,
     FernetEncrypter,
-    AESEncrypter,
 )
 from fastpy_cli.libs.encryption.facade import Crypt, StringEncrypter
 

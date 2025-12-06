@@ -2,8 +2,8 @@
 Event Dispatcher implementation.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type, Union
 import threading
+from typing import Any, Callable, Optional, Union
 
 
 class EventDispatcher:
@@ -11,8 +11,8 @@ class EventDispatcher:
     Event dispatcher for pub/sub pattern.
     """
 
-    _listeners: Dict[str, List[Callable]] = {}
-    _wildcards: List[tuple] = []
+    _listeners: dict[str, list[Callable]] = {}
+    _wildcards: list[tuple] = []
     _lock = threading.Lock()
 
     def __init__(self):
@@ -21,7 +21,7 @@ class EventDispatcher:
     @classmethod
     def listen(
         cls,
-        event: Union[str, List[str]],
+        event: Union[str, list[str]],
         listener: Optional[Callable] = None,
     ) -> Callable:
         """
@@ -68,11 +68,7 @@ class EventDispatcher:
             return True
 
         # Check wildcards
-        for pattern, _ in cls._wildcards:
-            if cls._matches_wildcard(event, pattern):
-                return True
-
-        return False
+        return any(cls._matches_wildcard(event, pattern) for pattern, _ in cls._wildcards)
 
     @classmethod
     def _matches_wildcard(cls, event: str, pattern: str) -> bool:
@@ -84,9 +80,9 @@ class EventDispatcher:
     def dispatch(
         cls,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
         halt: bool = False,
-    ) -> List[Any]:
+    ) -> list[Any]:
         """
         Dispatch an event to all listeners.
 
@@ -125,7 +121,7 @@ class EventDispatcher:
         cls,
         listener: Callable,
         event: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
     ) -> Any:
         """Call a listener with the event data."""
         # Check if it's a class with handle method
@@ -142,7 +138,7 @@ class EventDispatcher:
     def dispatch_async(
         cls,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ) -> str:
         """
         Dispatch an event asynchronously via the queue.
@@ -156,7 +152,7 @@ class EventDispatcher:
         })
 
     @classmethod
-    def subscribe(cls, subscriber: Union[Type, object]) -> None:
+    def subscribe(cls, subscriber: Union[type, object]) -> None:
         """
         Register an event subscriber.
 
@@ -177,8 +173,8 @@ class EventDispatcher:
 
             # Remove matching wildcards
             cls._wildcards = [
-                (p, l) for p, l in cls._wildcards
-                if not cls._matches_wildcard(event, p)
+                (pattern, listener) for pattern, listener in cls._wildcards
+                if not cls._matches_wildcard(event, pattern)
             ]
 
     @classmethod
@@ -192,7 +188,7 @@ class EventDispatcher:
     def until(
         cls,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
+        payload: Optional[dict[str, Any]] = None,
     ) -> Any:
         """
         Dispatch event until first non-None response.
@@ -201,7 +197,7 @@ class EventDispatcher:
         return responses[0] if responses else None
 
     @classmethod
-    def push(cls, event: str, payload: Optional[Dict[str, Any]] = None) -> None:
+    def push(cls, event: str, payload: Optional[dict[str, Any]] = None) -> None:
         """
         Push an event onto the queue without dispatching.
         Alias for dispatch_async.

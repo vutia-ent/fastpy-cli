@@ -2,12 +2,11 @@
 Storage Drivers - Different storage backend implementations.
 """
 
-import os
 import shutil
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import BinaryIO, Dict, Iterator, List, Optional, Union
+from typing import BinaryIO, Optional, Union
 
 
 class StorageDriver(ABC):
@@ -49,17 +48,17 @@ class StorageDriver(ABC):
         pass
 
     @abstractmethod
-    def files(self, directory: str = "") -> List[str]:
+    def files(self, directory: str = "") -> list[str]:
         """Get all files in a directory."""
         pass
 
     @abstractmethod
-    def all_files(self, directory: str = "") -> List[str]:
+    def all_files(self, directory: str = "") -> list[str]:
         """Get all files recursively."""
         pass
 
     @abstractmethod
-    def directories(self, directory: str = "") -> List[str]:
+    def directories(self, directory: str = "") -> list[str]:
         """Get all directories."""
         pass
 
@@ -129,7 +128,7 @@ class LocalDriver(StorageDriver):
         except ValueError:
             raise ValueError(
                 f"Path traversal attempt detected: '{path}' escapes storage root"
-            )
+            ) from None
 
         return full_path
 
@@ -171,7 +170,7 @@ class LocalDriver(StorageDriver):
             return None
         return datetime.fromtimestamp(full_path.stat().st_mtime)
 
-    def files(self, directory: str = "") -> List[str]:
+    def files(self, directory: str = "") -> list[str]:
         dir_path = self._path(directory)
         if not dir_path.exists():
             return []
@@ -181,7 +180,7 @@ class LocalDriver(StorageDriver):
             if f.is_file()
         ]
 
-    def all_files(self, directory: str = "") -> List[str]:
+    def all_files(self, directory: str = "") -> list[str]:
         dir_path = self._path(directory)
         if not dir_path.exists():
             return []
@@ -191,7 +190,7 @@ class LocalDriver(StorageDriver):
             if f.is_file()
         ]
 
-    def directories(self, directory: str = "") -> List[str]:
+    def directories(self, directory: str = "") -> list[str]:
         dir_path = self._path(directory)
         if not dir_path.exists():
             return []
@@ -245,10 +244,10 @@ class S3Driver(StorageDriver):
                     aws_secret_access_key=self.secret_key,
                     endpoint_url=self.endpoint,
                 )
-            except ImportError:
+            except ImportError as err:
                 raise ImportError(
                     "S3 driver requires boto3. Install with: pip install boto3"
-                )
+                ) from err
         return self._client
 
     def put(self, path: str, contents: Union[str, bytes]) -> bool:
@@ -308,7 +307,7 @@ class S3Driver(StorageDriver):
         except Exception:
             return None
 
-    def files(self, directory: str = "") -> List[str]:
+    def files(self, directory: str = "") -> list[str]:
         client = self._get_client()
         prefix = directory.strip("/")
         if prefix:
@@ -322,7 +321,7 @@ class S3Driver(StorageDriver):
 
         return [obj["Key"] for obj in response.get("Contents", [])]
 
-    def all_files(self, directory: str = "") -> List[str]:
+    def all_files(self, directory: str = "") -> list[str]:
         client = self._get_client()
         prefix = directory.strip("/")
         if prefix:
@@ -337,7 +336,7 @@ class S3Driver(StorageDriver):
 
         return files
 
-    def directories(self, directory: str = "") -> List[str]:
+    def directories(self, directory: str = "") -> list[str]:
         client = self._get_client()
         prefix = directory.strip("/")
         if prefix:
@@ -381,8 +380,8 @@ class MemoryDriver(StorageDriver):
     """In-memory storage driver for testing."""
 
     def __init__(self, url_prefix: str = "/storage"):
-        self._files: Dict[str, bytes] = {}
-        self._metadata: Dict[str, Dict] = {}
+        self._files: dict[str, bytes] = {}
+        self._metadata: dict[str, dict] = {}
         self.url_prefix = url_prefix
 
     def put(self, path: str, contents: Union[str, bytes]) -> bool:
@@ -418,7 +417,7 @@ class MemoryDriver(StorageDriver):
         meta = self._metadata.get(path.lstrip("/"), {})
         return meta.get("modified")
 
-    def files(self, directory: str = "") -> List[str]:
+    def files(self, directory: str = "") -> list[str]:
         directory = directory.strip("/")
         prefix = f"{directory}/" if directory else ""
         return [
@@ -426,12 +425,12 @@ class MemoryDriver(StorageDriver):
             if f.startswith(prefix) and "/" not in f[len(prefix):]
         ]
 
-    def all_files(self, directory: str = "") -> List[str]:
+    def all_files(self, directory: str = "") -> list[str]:
         directory = directory.strip("/")
         prefix = f"{directory}/" if directory else ""
         return [f for f in self._files if f.startswith(prefix)]
 
-    def directories(self, directory: str = "") -> List[str]:
+    def directories(self, directory: str = "") -> list[str]:
         directory = directory.strip("/")
         prefix = f"{directory}/" if directory else ""
         dirs = set()

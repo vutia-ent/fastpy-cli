@@ -3,12 +3,11 @@ Storage Facade - Static interface to storage manager.
 """
 
 from datetime import datetime
-from typing import BinaryIO, Dict, List, Optional, Union
+from typing import BinaryIO, Optional, Union
 
-from fastpy_cli.libs.storage.manager import StorageManager
 from fastpy_cli.libs.storage.drivers import StorageDriver
+from fastpy_cli.libs.storage.manager import StorageManager
 from fastpy_cli.libs.support.container import container
-
 
 # Register the storage manager in the container
 container.singleton("storage", lambda c: StorageManager())
@@ -111,17 +110,17 @@ class Storage:
         return cls._manager().prepend(path, data)
 
     @classmethod
-    def files(cls, directory: str = "") -> List[str]:
+    def files(cls, directory: str = "") -> list[str]:
         """Get all files in a directory."""
         return cls._manager().files(directory)
 
     @classmethod
-    def all_files(cls, directory: str = "") -> List[str]:
+    def all_files(cls, directory: str = "") -> list[str]:
         """Get all files recursively."""
         return cls._manager().all_files(directory)
 
     @classmethod
-    def directories(cls, directory: str = "") -> List[str]:
+    def directories(cls, directory: str = "") -> list[str]:
         """Get all directories."""
         return cls._manager().directories(directory)
 
@@ -156,7 +155,6 @@ class Storage:
             Storage.put('file.txt', 'content')
             Storage.assert_exists('file.txt')
         """
-        from fastpy_cli.libs.storage.drivers import MemoryDriver
 
         fake = StorageFake()
         container.instance("storage", fake)
@@ -194,10 +192,10 @@ class StorageFake:
     def size(self, path: str) -> int:
         return self._driver.size(path)
 
-    def files(self, directory: str = "") -> List[str]:
+    def files(self, directory: str = "") -> list[str]:
         return self._driver.files(directory)
 
-    def all_files(self, directory: str = "") -> List[str]:
+    def all_files(self, directory: str = "") -> list[str]:
         return self._driver.all_files(directory)
 
     def disk(self, name: str) -> "StorageFake":

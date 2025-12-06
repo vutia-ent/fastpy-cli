@@ -2,12 +2,12 @@
 Hash Manager - Manages multiple hashing drivers.
 """
 
-from typing import Dict, Optional, Type
+from typing import Optional
 
 from fastpy_cli.libs.hashing.hasher import (
-    Hasher,
-    BcryptHasher,
     Argon2Hasher,
+    BcryptHasher,
+    Hasher,
     SHA256Hasher,
 )
 
@@ -22,17 +22,17 @@ class HashManager:
         is_valid = manager.check('password', hashed)
     """
 
-    _drivers: Dict[str, Type[Hasher]] = {
+    _drivers: dict[str, type[Hasher]] = {
         "bcrypt": BcryptHasher,
         "argon2": Argon2Hasher,
         "sha256": SHA256Hasher,
     }
 
-    _instances: Dict[str, Hasher] = {}
+    _instances: dict[str, Hasher] = {}
 
     def __init__(self, default_driver: str = "bcrypt"):
         self._default_driver = default_driver
-        self._config: Dict[str, dict] = {}
+        self._config: dict[str, dict] = {}
 
     def driver(self, name: Optional[str] = None) -> Hasher:
         """Get a hasher driver."""
@@ -57,7 +57,7 @@ class HashManager:
 
         return self
 
-    def extend(self, name: str, driver_class: Type[Hasher]) -> "HashManager":
+    def extend(self, name: str, driver_class: type[Hasher]) -> "HashManager":
         """Register a custom hasher."""
         self._drivers[name] = driver_class
         return self

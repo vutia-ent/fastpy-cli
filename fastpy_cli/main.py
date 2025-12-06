@@ -16,7 +16,7 @@ from rich.table import Table
 
 from fastpy_cli import __version__
 from fastpy_cli.config import CONFIG_FILE, get_config, init_config_file
-from fastpy_cli.logger import is_debug, log_debug, log_error, log_info, setup_logger
+from fastpy_cli.logger import log_debug, log_error, log_info, setup_logger
 from fastpy_cli.utils import safe_execute_command, validate_command
 
 app = typer.Typer(
@@ -172,10 +172,7 @@ def proxy_to_project_cli(args: list[str]) -> int:
     else:
         venv_python = Path.cwd() / "venv" / "bin" / "python"
 
-    if venv_python.exists():
-        python_cmd = str(venv_python)
-    else:
-        python_cmd = sys.executable
+    python_cmd = str(venv_python) if venv_python.exists() else sys.executable
 
     cmd = [python_cmd, str(cli_py)] + args
     log_debug(f"Proxying to project CLI: {cmd}")
@@ -595,7 +592,7 @@ def update_env_file(key: str, value: str, env_path: Path = Path(".env")) -> bool
 
         # Read existing file if it exists
         if env_path.exists():
-            with open(env_path, "r") as f:
+            with open(env_path) as f:
                 for line in f:
                     # Check if this line contains our key
                     if line.strip().startswith(f"{key}="):
@@ -656,7 +653,6 @@ def ai_config_command(
         groq       - Groq Cloud (requires GROQ_API_KEY)
         ollama     - Local LLMs (free, no API key needed)
     """
-    from rich.prompt import Prompt
     import requests
 
     console.print()
@@ -757,7 +753,7 @@ def ai_config_command(
                 if not existing_key:
                     console.print()
                     console.print("[yellow]Set your API key:[/yellow]")
-                    console.print(f"  fastpy ai:config -k YOUR_API_KEY")
+                    console.print("  fastpy ai:config -k YOUR_API_KEY")
                     console.print("  [dim]or[/dim]")
                     console.print(f"  export {info['env_var']}=your-key-here")
                     console.print()
@@ -961,7 +957,7 @@ def ai_config_command(
             providers_status.append(("ollama", "[green]✓[/green] Running locally"))
         else:
             providers_status.append(("ollama", "[yellow]○[/yellow] Not running"))
-    except:
+    except Exception:
         providers_status.append(("ollama", "[yellow]○[/yellow] Not running"))
 
     console.print()
@@ -1305,7 +1301,7 @@ def setup_env_command() -> None:
     Example:
         fastpy setup:env
     """
-    from fastpy_cli.setup import setup_env, is_fastpy_project
+    from fastpy_cli.setup import is_fastpy_project, setup_env
 
     if not is_fastpy_project():
         console.print("[red]Error:[/red] Not inside a Fastpy project.")
@@ -1342,7 +1338,7 @@ def setup_db_command(
         fastpy setup:db -d sqlite -n dev         # SQLite for development
         fastpy setup:db -d mysql -h localhost -u root -n myapp --password secret -y
     """
-    from fastpy_cli.setup import setup_db, is_fastpy_project
+    from fastpy_cli.setup import is_fastpy_project, setup_db
 
     if not is_fastpy_project():
         console.print("[red]Error:[/red] Not inside a Fastpy project.")
@@ -1373,7 +1369,7 @@ def setup_secret_command(
         fastpy setup:secret          # Generate 64-character key
         fastpy setup:secret -l 128   # Generate 128-character key
     """
-    from fastpy_cli.setup import setup_secret, is_fastpy_project
+    from fastpy_cli.setup import is_fastpy_project, setup_secret
 
     if not is_fastpy_project():
         console.print("[red]Error:[/red] Not inside a Fastpy project.")
@@ -1392,7 +1388,7 @@ def setup_hooks_command() -> None:
     Example:
         fastpy setup:hooks
     """
-    from fastpy_cli.setup import setup_hooks, is_fastpy_project
+    from fastpy_cli.setup import is_fastpy_project, setup_hooks
 
     if not is_fastpy_project():
         console.print("[red]Error:[/red] Not inside a Fastpy project.")

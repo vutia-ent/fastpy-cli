@@ -2,10 +2,10 @@
 Password Hashing - Secure password hashing with multiple algorithms.
 """
 
-from abc import ABC, abstractmethod
-from typing import Optional
 import hashlib
 import secrets
+from abc import ABC, abstractmethod
+from typing import Optional
 
 
 class Hasher(ABC):
@@ -45,10 +45,10 @@ class BcryptHasher(Hasher):
         """Hash a value using bcrypt."""
         try:
             import bcrypt
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "bcrypt package required. Install with: pip install bcrypt"
-            )
+            ) from err
 
         options = options or {}
         rounds = options.get("rounds", self.rounds)
@@ -60,10 +60,10 @@ class BcryptHasher(Hasher):
         """Verify a value against a bcrypt hash."""
         try:
             import bcrypt
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "bcrypt package required. Install with: pip install bcrypt"
-            )
+            ) from err
 
         try:
             return bcrypt.checkpw(
@@ -117,10 +117,10 @@ class Argon2Hasher(Hasher):
         """Hash a value using Argon2."""
         try:
             from argon2 import PasswordHasher
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "argon2-cffi package required. Install with: pip install argon2-cffi"
-            )
+            ) from err
 
         options = options or {}
         ph = PasswordHasher(
@@ -134,11 +134,11 @@ class Argon2Hasher(Hasher):
         """Verify a value against an Argon2 hash."""
         try:
             from argon2 import PasswordHasher
-            from argon2.exceptions import VerifyMismatchError, InvalidHashError
-        except ImportError:
+            from argon2.exceptions import InvalidHashError, VerifyMismatchError
+        except ImportError as err:
             raise ImportError(
                 "argon2-cffi package required. Install with: pip install argon2-cffi"
-            )
+            ) from err
 
         ph = PasswordHasher()
         try:

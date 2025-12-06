@@ -37,15 +37,15 @@ Usage:
     ]).then(lambda: print('All done!')).dispatch()
 """
 
-from fastpy_cli.libs.queue.job import Job, SerializableJob
-from fastpy_cli.libs.queue.manager import QueueManager, PendingDispatch
-from fastpy_cli.libs.queue.facade import Queue
 from fastpy_cli.libs.queue.drivers import (
-    QueueDriver,
-    SyncDriver,
-    RedisDriver,
     DatabaseDriver,
+    QueueDriver,
+    RedisDriver,
+    SyncDriver,
 )
+from fastpy_cli.libs.queue.facade import Queue
+from fastpy_cli.libs.queue.job import Job, SerializableJob
+from fastpy_cli.libs.queue.manager import PendingDispatch, QueueManager
 
 __all__ = [
     "Queue",

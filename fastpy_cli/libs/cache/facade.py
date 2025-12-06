@@ -2,12 +2,11 @@
 Cache Facade - Static interface to cache manager.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
-from fastpy_cli.libs.cache.manager import CacheManager, TaggedCache
 from fastpy_cli.libs.cache.drivers import CacheDriver
+from fastpy_cli.libs.cache.manager import CacheManager, TaggedCache
 from fastpy_cli.libs.support.container import container
-
 
 # Register the cache manager in the container
 container.singleton("cache", lambda c: CacheManager())
@@ -66,12 +65,12 @@ class Cache:
         return cls._manager().has(key)
 
     @classmethod
-    def get_many(cls, keys: List[str]) -> Dict[str, Any]:
+    def get_many(cls, keys: list[str]) -> dict[str, Any]:
         """Get multiple values."""
         return cls._manager().get_many(keys)
 
     @classmethod
-    def put_many(cls, values: Dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def put_many(cls, values: dict[str, Any], ttl: Optional[int] = None) -> bool:
         """Store multiple values."""
         return cls._manager().put_many(values, ttl)
 
@@ -101,7 +100,7 @@ class Cache:
         return cls._manager().forever(key, value)
 
     @classmethod
-    def tags(cls, tags: List[str]) -> TaggedCache:
+    def tags(cls, tags: list[str]) -> TaggedCache:
         """Get a tagged cache instance."""
         return cls._manager().tags(tags)
 
@@ -135,7 +134,7 @@ class CacheFake:
     """Fake cache for testing."""
 
     def __init__(self):
-        self._store: Dict[str, Any] = {}
+        self._store: dict[str, Any] = {}
 
     def get(self, key: str, default: Any = None) -> Any:
         return self._store.get(key, default)
@@ -157,10 +156,10 @@ class CacheFake:
     def has(self, key: str) -> bool:
         return key in self._store
 
-    def get_many(self, keys: List[str]) -> Dict[str, Any]:
+    def get_many(self, keys: list[str]) -> dict[str, Any]:
         return {k: self._store.get(k) for k in keys}
 
-    def put_many(self, values: Dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def put_many(self, values: dict[str, Any], ttl: Optional[int] = None) -> bool:
         self._store.update(values)
         return True
 
@@ -182,7 +181,7 @@ class CacheFake:
     def forever(self, key: str, value: Any) -> bool:
         return self.put(key, value)
 
-    def tags(self, tags: List[str]) -> "CacheFake":
+    def tags(self, tags: list[str]) -> "CacheFake":
         return self
 
     def assert_has(self, key: str) -> bool:

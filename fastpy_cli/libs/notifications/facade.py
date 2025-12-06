@@ -2,13 +2,12 @@
 Notification Facade - Static interface to notification manager.
 """
 
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
-from fastpy_cli.libs.notifications.notification import Notification
-from fastpy_cli.libs.notifications.manager import NotificationManager, AnonymousNotifiable
 from fastpy_cli.libs.notifications.channels import NotificationChannel
+from fastpy_cli.libs.notifications.manager import AnonymousNotifiable, NotificationManager
+from fastpy_cli.libs.notifications.notification import Notification
 from fastpy_cli.libs.support.container import container
-
 
 # Register the notification manager in the container
 container.singleton("notifications", lambda c: NotificationManager())
@@ -40,7 +39,7 @@ class Notify:
     @classmethod
     def send(
         cls,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> bool:
         """Send a notification."""
@@ -49,7 +48,7 @@ class Notify:
     @classmethod
     def send_now(
         cls,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> bool:
         """Send a notification immediately."""
@@ -59,7 +58,7 @@ class Notify:
     def later(
         cls,
         delay: int,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> str:
         """Queue a notification to be sent later."""
@@ -100,11 +99,11 @@ class NotificationFake:
     """Fake notification manager for testing."""
 
     def __init__(self):
-        self._sent: List[tuple] = []
+        self._sent: list[tuple] = []
 
     def send(
         self,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> bool:
         if not isinstance(notifiables, list):
@@ -117,7 +116,7 @@ class NotificationFake:
 
     def send_now(
         self,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> bool:
         return self.send(notifiables, notification)
@@ -125,7 +124,7 @@ class NotificationFake:
     def send_later(
         self,
         delay: int,
-        notifiables: Union[Any, List[Any]],
+        notifiables: Union[Any, list[Any]],
         notification: Notification,
     ) -> str:
         self.send(notifiables, notification)
@@ -192,6 +191,6 @@ class NotificationFake:
         return True
 
     @property
-    def sent(self) -> List[tuple]:
+    def sent(self) -> list[tuple]:
         """Get all sent notifications."""
         return self._sent

@@ -2,12 +2,12 @@
 Encryption - AES encryption with multiple modes.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Optional, Union
 import base64
 import json
-import secrets
 import os
+import secrets
+from abc import ABC, abstractmethod
+from typing import Any, Optional
 
 
 class Encrypter(ABC):
@@ -46,10 +46,10 @@ class FernetEncrypter(Encrypter):
     def __init__(self, key: Optional[str] = None):
         try:
             from cryptography.fernet import Fernet
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "cryptography package required. Install with: pip install cryptography"
-            )
+            ) from err
 
         if key is None:
             key = os.environ.get("APP_KEY")
@@ -72,7 +72,7 @@ class FernetEncrypter(Encrypter):
             else:
                 raise ValueError(
                     "Invalid key format. Use Crypt.generate_key() to create a valid key."
-                )
+                ) from None
 
         self._fernet = Fernet(self._key)
 
@@ -118,7 +118,7 @@ class FernetEncrypter(Encrypter):
                 return value
 
         except InvalidToken:
-            raise ValueError("Invalid or corrupted payload")
+            raise ValueError("Invalid or corrupted payload") from None
 
     @staticmethod
     def generate_key(cipher: str = "fernet") -> str:
@@ -136,12 +136,15 @@ class AESEncrypter(Encrypter):
 
     def __init__(self, key: Optional[str] = None):
         try:
-            from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-            from cryptography.hazmat.backends import default_backend
-        except ImportError:
+            from cryptography.hazmat.primitives.ciphers import (  # noqa: F401
+                Cipher,
+                algorithms,
+                modes,
+            )
+        except ImportError as err:
             raise ImportError(
                 "cryptography package required. Install with: pip install cryptography"
-            )
+            ) from err
 
         if key is None:
             key = os.environ.get("APP_KEY")
@@ -155,13 +158,13 @@ class AESEncrypter(Encrypter):
             if len(self._key) not in (16, 24, 32):
                 raise ValueError("Key must be 16, 24, or 32 bytes")
         except Exception:
-            raise ValueError("Invalid key format")
+            raise ValueError("Invalid key format") from None
 
     def encrypt(self, value: Any) -> str:
         """Encrypt a value using AES-256-CBC."""
-        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
         from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives import padding
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
         if not isinstance(value, (str, bytes)):
             value = json.dumps(value)
@@ -196,9 +199,9 @@ class AESEncrypter(Encrypter):
 
     def decrypt(self, payload: str) -> Any:
         """Decrypt an AES-256-CBC encrypted value."""
-        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
         from cryptography.hazmat.backends import default_backend
         from cryptography.hazmat.primitives import padding
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
         try:
             # Decode payload
@@ -232,12 +235,12 @@ class AESEncrypter(Encrypter):
                 return value_str
 
         except (KeyError, json.JSONDecodeError, ValueError) as e:
-            raise ValueError(f"Invalid or corrupted payload: {e}")
+            raise ValueError(f"Invalid or corrupted payload: {e}") from e
 
     def _create_mac(self, iv: bytes, value: bytes) -> str:
         """Create HMAC for payload verification."""
-        import hmac
         import hashlib
+        import hmac
 
         data = base64.b64encode(iv) + base64.b64encode(value)
         mac = hmac.new(self._key, data, hashlib.sha256)

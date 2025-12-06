@@ -2,14 +2,13 @@
 Crypt Facade - Static interface to encryption.
 """
 
-from typing import Any, Optional, Type
+from typing import Any, Optional
 
 from fastpy_cli.libs.encryption.encrypter import (
+    AESEncrypter,
     Encrypter,
     FernetEncrypter,
-    AESEncrypter,
 )
-from fastpy_cli.libs.support.container import container
 
 
 class Crypt:
@@ -163,7 +162,7 @@ class Crypt:
         cls._default_driver = driver
 
     @classmethod
-    def extend(cls, name: str, driver_class: Type[Encrypter]) -> None:
+    def extend(cls, name: str, driver_class: type[Encrypter]) -> None:
         """
         Register a custom encrypter.
 

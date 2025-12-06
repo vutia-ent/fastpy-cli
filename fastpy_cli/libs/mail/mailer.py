@@ -4,9 +4,9 @@ Mailer implementation with fluent interface.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
-from fastpy_cli.libs.mail.drivers import MailDriver, MailMessage, SMTPDriver, LogDriver
+from fastpy_cli.libs.mail.drivers import LogDriver, MailDriver, MailMessage
 
 
 @dataclass
@@ -16,20 +16,20 @@ class PendingMail:
     """
 
     _driver: MailDriver
-    _to: List[str] = field(default_factory=list)
-    _cc: List[str] = field(default_factory=list)
-    _bcc: List[str] = field(default_factory=list)
+    _to: list[str] = field(default_factory=list)
+    _cc: list[str] = field(default_factory=list)
+    _bcc: list[str] = field(default_factory=list)
     _from_address: Optional[str] = None
     _from_name: Optional[str] = None
     _reply_to: Optional[str] = None
     _subject: str = ""
     _html: Optional[str] = None
     _text: Optional[str] = None
-    _attachments: List[Dict[str, Any]] = field(default_factory=list)
-    _headers: Dict[str, str] = field(default_factory=dict)
-    _template_renderer: Optional[Callable[[str, Dict[str, Any]], str]] = None
+    _attachments: list[dict[str, Any]] = field(default_factory=list)
+    _headers: dict[str, str] = field(default_factory=dict)
+    _template_renderer: Optional[Callable[[str, dict[str, Any]], str]] = None
 
-    def to(self, addresses: Union[str, List[str]]) -> "PendingMail":
+    def to(self, addresses: Union[str, list[str]]) -> "PendingMail":
         """Set recipient(s)."""
         if isinstance(addresses, str):
             self._to = [addresses]
@@ -37,7 +37,7 @@ class PendingMail:
             self._to = addresses
         return self
 
-    def cc(self, addresses: Union[str, List[str]]) -> "PendingMail":
+    def cc(self, addresses: Union[str, list[str]]) -> "PendingMail":
         """Add CC recipient(s)."""
         if isinstance(addresses, str):
             self._cc.append(addresses)
@@ -45,7 +45,7 @@ class PendingMail:
             self._cc.extend(addresses)
         return self
 
-    def bcc(self, addresses: Union[str, List[str]]) -> "PendingMail":
+    def bcc(self, addresses: Union[str, list[str]]) -> "PendingMail":
         """Add BCC recipient(s)."""
         if isinstance(addresses, str):
             self._bcc.append(addresses)
@@ -79,7 +79,7 @@ class PendingMail:
         self._text = content
         return self
 
-    def view(self, template: str, data: Optional[Dict[str, Any]] = None) -> "PendingMail":
+    def view(self, template: str, data: Optional[dict[str, Any]] = None) -> "PendingMail":
         """Render a template for the email body."""
         if self._template_renderer:
             self._html = self._template_renderer(template, data or {})
@@ -88,7 +88,7 @@ class PendingMail:
             self._html = self._render_template(template, data or {})
         return self
 
-    def _render_template(self, template: str, data: Dict[str, Any]) -> str:
+    def _render_template(self, template: str, data: dict[str, Any]) -> str:
         """Render a template using Jinja2 if available."""
         try:
             from jinja2 import Environment, FileSystemLoader
@@ -163,7 +163,7 @@ class PendingMail:
     def send(
         self,
         template: Optional[str] = None,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         Send the email.
@@ -194,7 +194,7 @@ class PendingMail:
     def queue(
         self,
         template: Optional[str] = None,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Queue the email for background sending."""
         # This would integrate with the Queue system
@@ -220,7 +220,7 @@ class PendingMail:
         self,
         delay_seconds: int,
         template: Optional[str] = None,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[dict[str, Any]] = None,
     ) -> bool:
         """Queue the email to be sent after a delay."""
         from fastpy_cli.libs.queue import Queue
@@ -247,10 +247,10 @@ class Mailer:
     Mail manager supporting multiple drivers.
     """
 
-    _drivers: Dict[str, MailDriver] = {}
+    _drivers: dict[str, MailDriver] = {}
     _default_driver: str = "log"
     _default_from: Optional[tuple] = None
-    _template_renderer: Optional[Callable[[str, Dict[str, Any]], str]] = None
+    _template_renderer: Optional[Callable[[str, dict[str, Any]], str]] = None
 
     def __init__(self):
         # Register default log driver
@@ -282,7 +282,7 @@ class Mailer:
     @classmethod
     def set_template_renderer(
         cls,
-        renderer: Callable[[str, Dict[str, Any]], str],
+        renderer: Callable[[str, dict[str, Any]], str],
     ) -> None:
         """Set a custom template renderer."""
         cls._template_renderer = renderer
@@ -295,7 +295,7 @@ class Mailer:
         return cls._drivers[cls._default_driver]
 
     @classmethod
-    def to(cls, addresses: Union[str, List[str]]) -> PendingMail:
+    def to(cls, addresses: Union[str, list[str]]) -> PendingMail:
         """Create a pending mail with recipient(s)."""
         pending = PendingMail(
             _driver=cls.get_default_driver(),

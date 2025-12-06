@@ -2,17 +2,16 @@
 Mail Facade - Static interface to mailer.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
-from fastpy_cli.libs.mail.mailer import Mailer, PendingMail
 from fastpy_cli.libs.mail.drivers import (
     MailDriver,
-    SMTPDriver,
-    SendGridDriver,
     MailgunDriver,
+    SendGridDriver,
     SESDriver,
-    LogDriver,
+    SMTPDriver,
 )
+from fastpy_cli.libs.mail.mailer import Mailer, PendingMail
 from fastpy_cli.libs.support.container import container
 
 
@@ -111,7 +110,7 @@ class Mail:
         return container.make("mail")
 
     @classmethod
-    def to(cls, addresses: Union[str, List[str]]) -> PendingMail:
+    def to(cls, addresses: Union[str, list[str]]) -> PendingMail:
         """Create a pending mail with recipient(s)."""
         return cls._mailer().to(addresses)
 
@@ -148,7 +147,7 @@ class Mail:
     @classmethod
     def set_template_renderer(
         cls,
-        renderer: Callable[[str, Dict[str, Any]], str],
+        renderer: Callable[[str, dict[str, Any]], str],
     ) -> None:
         """Set a custom template renderer."""
         cls._mailer().set_template_renderer(renderer)
@@ -175,10 +174,10 @@ class MailFake:
     """
 
     def __init__(self):
-        self._sent: List[Dict[str, Any]] = []
-        self._queued: List[Dict[str, Any]] = []
+        self._sent: list[dict[str, Any]] = []
+        self._queued: list[dict[str, Any]] = []
 
-    def to(self, addresses: Union[str, List[str]]) -> "FakePendingMail":
+    def to(self, addresses: Union[str, list[str]]) -> "FakePendingMail":
         """Create a fake pending mail."""
         return FakePendingMail(self, addresses)
 
@@ -188,11 +187,11 @@ class MailFake:
     def using(self, driver: str) -> "FakePendingMail":
         return FakePendingMail(self, [])
 
-    def record_sent(self, mail_data: Dict[str, Any]) -> None:
+    def record_sent(self, mail_data: dict[str, Any]) -> None:
         """Record a sent email."""
         self._sent.append(mail_data)
 
-    def record_queued(self, mail_data: Dict[str, Any]) -> None:
+    def record_queued(self, mail_data: dict[str, Any]) -> None:
         """Record a queued email."""
         self._queued.append(mail_data)
 
@@ -235,12 +234,12 @@ class MailFake:
         return True
 
     @property
-    def sent(self) -> List[Dict[str, Any]]:
+    def sent(self) -> list[dict[str, Any]]:
         """Get sent emails."""
         return self._sent
 
     @property
-    def queued(self) -> List[Dict[str, Any]]:
+    def queued(self) -> list[dict[str, Any]]:
         """Get queued emails."""
         return self._queued
 
@@ -248,7 +247,7 @@ class MailFake:
 class FakePendingMail:
     """Fake pending mail for testing."""
 
-    def __init__(self, fake: MailFake, to: Union[str, List[str]]):
+    def __init__(self, fake: MailFake, to: Union[str, list[str]]):
         self._fake = fake
         self._data = {
             "to": [to] if isinstance(to, str) else to,
@@ -256,18 +255,18 @@ class FakePendingMail:
             "bcc": [],
         }
 
-    def to(self, addresses: Union[str, List[str]]) -> "FakePendingMail":
+    def to(self, addresses: Union[str, list[str]]) -> "FakePendingMail":
         self._data["to"] = [addresses] if isinstance(addresses, str) else addresses
         return self
 
-    def cc(self, addresses: Union[str, List[str]]) -> "FakePendingMail":
+    def cc(self, addresses: Union[str, list[str]]) -> "FakePendingMail":
         if isinstance(addresses, str):
             self._data["cc"].append(addresses)
         else:
             self._data["cc"].extend(addresses)
         return self
 
-    def bcc(self, addresses: Union[str, List[str]]) -> "FakePendingMail":
+    def bcc(self, addresses: Union[str, list[str]]) -> "FakePendingMail":
         if isinstance(addresses, str):
             self._data["bcc"].append(addresses)
         else:
@@ -291,7 +290,7 @@ class FakePendingMail:
         self._data["text"] = content
         return self
 
-    def view(self, template: str, data: Optional[Dict[str, Any]] = None) -> "FakePendingMail":
+    def view(self, template: str, data: Optional[dict[str, Any]] = None) -> "FakePendingMail":
         self._data["template"] = template
         self._data["template_data"] = data
         return self
@@ -302,19 +301,19 @@ class FakePendingMail:
     def attach_data(self, *args, **kwargs) -> "FakePendingMail":
         return self
 
-    def send(self, template: Optional[str] = None, data: Optional[Dict[str, Any]] = None) -> bool:
+    def send(self, template: Optional[str] = None, data: Optional[dict[str, Any]] = None) -> bool:
         if template:
             self._data["template"] = template
             self._data["template_data"] = data
         self._fake.record_sent(self._data)
         return True
 
-    def queue(self, template: Optional[str] = None, data: Optional[Dict[str, Any]] = None) -> bool:
+    def queue(self, template: Optional[str] = None, data: Optional[dict[str, Any]] = None) -> bool:
         if template:
             self._data["template"] = template
             self._data["template_data"] = data
         self._fake.record_queued(self._data)
         return True
 
-    def later(self, delay: int, template: Optional[str] = None, data: Optional[Dict[str, Any]] = None) -> bool:
+    def later(self, delay: int, template: Optional[str] = None, data: Optional[dict[str, Any]] = None) -> bool:
         return self.queue(template, data)

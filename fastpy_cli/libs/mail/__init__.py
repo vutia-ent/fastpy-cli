@@ -39,16 +39,16 @@ Usage:
     Mail.to('user@example.com').later(60, 'reminder', {'task': 'Complete signup'})
 """
 
-from fastpy_cli.libs.mail.mailer import Mailer, PendingMail
-from fastpy_cli.libs.mail.facade import Mail
 from fastpy_cli.libs.mail.drivers import (
-    MailDriver,
-    SMTPDriver,
-    SendGridDriver,
-    MailgunDriver,
-    SESDriver,
     LogDriver,
+    MailDriver,
+    MailgunDriver,
+    SendGridDriver,
+    SESDriver,
+    SMTPDriver,
 )
+from fastpy_cli.libs.mail.facade import Mail
+from fastpy_cli.libs.mail.mailer import Mailer, PendingMail
 
 __all__ = [
     "Mail",

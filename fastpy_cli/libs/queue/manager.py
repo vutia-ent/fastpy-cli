@@ -2,13 +2,13 @@
 Queue Manager implementation.
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Union
 import threading
 import time
+from dataclasses import dataclass, field
+from typing import Any, Optional, Union
 
+from fastpy_cli.libs.queue.drivers import MemoryDriver, QueueDriver, SyncDriver
 from fastpy_cli.libs.queue.job import Job, JobBatch, QueuedJob
-from fastpy_cli.libs.queue.drivers import QueueDriver, SyncDriver, MemoryDriver
 
 
 @dataclass
@@ -19,7 +19,7 @@ class PendingDispatch:
 
     _manager: "QueueManager"
     _job: Optional[Job] = None
-    _jobs: List[Job] = field(default_factory=list)
+    _jobs: list[Job] = field(default_factory=list)
     _queue: str = "default"
     _connection: str = "default"
     _delay: int = 0
@@ -48,7 +48,7 @@ class PendingDispatch:
             return self._manager.later(self._delay, job, self._queue)
         return self._manager._push(job, self._queue)
 
-    def dispatch(self) -> Union[str, List[str]]:
+    def dispatch(self) -> Union[str, list[str]]:
         """Dispatch the job(s)."""
         if self._job:
             return self.push(self._job)
@@ -62,9 +62,9 @@ class QueueManager:
     Queue manager supporting multiple connections and drivers.
     """
 
-    _connections: Dict[str, QueueDriver] = {}
+    _connections: dict[str, QueueDriver] = {}
     _default_connection: str = "sync"
-    _failed_jobs: List[QueuedJob] = []
+    _failed_jobs: list[QueuedJob] = []
 
     def __init__(self):
         # Register default drivers
@@ -111,7 +111,7 @@ class QueueManager:
         return driver.push(job, queue)
 
     @classmethod
-    def push(cls, job: Union[Job, Dict[str, Any]], queue: str = "default") -> str:
+    def push(cls, job: Union[Job, dict[str, Any]], queue: str = "default") -> str:
         """
         Push a job onto the queue.
 
@@ -141,7 +141,7 @@ class QueueManager:
         return driver.later(delay, job, queue)
 
     @classmethod
-    def bulk(cls, jobs: List[Job], queue: str = "default") -> List[str]:
+    def bulk(cls, jobs: list[Job], queue: str = "default") -> list[str]:
         """
         Push multiple jobs onto the queue.
 
@@ -152,7 +152,7 @@ class QueueManager:
         return [cls.push(job, queue) for job in jobs]
 
     @classmethod
-    def chain(cls, jobs: List[Job]) -> str:
+    def chain(cls, jobs: list[Job]) -> str:
         """
         Chain jobs to run sequentially.
 
@@ -166,7 +166,7 @@ class QueueManager:
         return cls.push(chain_job)
 
     @classmethod
-    def batch(cls, jobs: List[Job]) -> JobBatch:
+    def batch(cls, jobs: list[Job]) -> JobBatch:
         """
         Create a batch of jobs.
 
@@ -285,7 +285,7 @@ class QueueManager:
 class _DictJob(Job):
     """Simple job created from a dictionary."""
 
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: dict[str, Any]):
         self.data = data
         self.handler = data.get("handler")
 
@@ -298,7 +298,7 @@ class _DictJob(Job):
 class _ChainJob(Job):
     """Job that runs a chain of jobs sequentially."""
 
-    def __init__(self, jobs: List[Job]):
+    def __init__(self, jobs: list[Job]):
         self.jobs = jobs
 
     def handle(self) -> None:

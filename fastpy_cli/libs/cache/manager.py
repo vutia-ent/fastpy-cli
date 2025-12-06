@@ -2,7 +2,7 @@
 Cache Manager implementation.
 """
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from fastpy_cli.libs.cache.drivers import CacheDriver, MemoryDriver
 
@@ -10,7 +10,7 @@ from fastpy_cli.libs.cache.drivers import CacheDriver, MemoryDriver
 class TaggedCache:
     """Cache with tag support for grouped invalidation."""
 
-    def __init__(self, driver: CacheDriver, tags: List[str]):
+    def __init__(self, driver: CacheDriver, tags: list[str]):
         self._driver = driver
         self._tags = tags
 
@@ -55,7 +55,7 @@ class CacheManager:
     Cache manager supporting multiple stores.
     """
 
-    _stores: Dict[str, CacheDriver] = {}
+    _stores: dict[str, CacheDriver] = {}
     _default_store: str = "memory"
 
     def __init__(self):
@@ -114,12 +114,12 @@ class CacheManager:
         return cls.get_default_store().has(key)
 
     @classmethod
-    def get_many(cls, keys: List[str]) -> Dict[str, Any]:
+    def get_many(cls, keys: list[str]) -> dict[str, Any]:
         """Get multiple values."""
         return cls.get_default_store().get_many(keys)
 
     @classmethod
-    def put_many(cls, values: Dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def put_many(cls, values: dict[str, Any], ttl: Optional[int] = None) -> bool:
         """Store multiple values."""
         return cls.get_default_store().put_many(values, ttl)
 
@@ -149,6 +149,6 @@ class CacheManager:
         return cls.get_default_store().forever(key, value)
 
     @classmethod
-    def tags(cls, tags: List[str]) -> TaggedCache:
+    def tags(cls, tags: list[str]) -> TaggedCache:
         """Get a tagged cache instance."""
         return TaggedCache(cls.get_default_store(), tags)

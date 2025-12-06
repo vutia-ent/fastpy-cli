@@ -7,18 +7,18 @@ admin user creation, and pre-commit hooks installation.
 These are standalone commands that work within a Fastpy project.
 """
 import os
-import sys
 import secrets
 import subprocess
-from pathlib import Path
-from typing import Optional, Tuple
+import sys
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
-from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Confirm, Prompt
 
 console = Console()
 
@@ -134,7 +134,7 @@ def is_fastpy_project() -> bool:
     return all(indicators)
 
 
-def check_database_server(driver: str) -> Tuple[bool, str]:
+def check_database_server(driver: str) -> tuple[bool, str]:
     """Check if database server is running."""
     if driver == "postgresql":
         if check_command_exists("psql"):
@@ -209,7 +209,7 @@ def create_database(config: DatabaseConfig) -> bool:
             console.print(f"[green]✓[/green] Database '{config.database}' created successfully")
             return True
         except subprocess.CalledProcessError:
-            console.print(f"[yellow]⚠[/yellow] Could not create database. You may need to create it manually.")
+            console.print("[yellow]⚠[/yellow] Could not create database. You may need to create it manually.")
             return False
 
     elif config.driver == "mysql":
@@ -222,7 +222,7 @@ def create_database(config: DatabaseConfig) -> bool:
             console.print(f"[green]✓[/green] Database '{config.database}' created successfully")
             return True
         except subprocess.CalledProcessError:
-            console.print(f"[yellow]⚠[/yellow] Could not create database. You may need to create it manually.")
+            console.print("[yellow]⚠[/yellow] Could not create database. You may need to create it manually.")
             return False
 
     return False
@@ -386,7 +386,7 @@ def setup_secret(length: int = 64) -> str:
     update_env("SECRET_KEY", secret_key)
 
     console.print(f"[green]✓[/green] Secure secret key generated ({length} characters)")
-    console.print(f"[dim]Key saved to .env[/dim]")
+    console.print("[dim]Key saved to .env[/dim]")
 
     return secret_key
 
@@ -500,13 +500,15 @@ def full_setup(
     # Step 4: Migrations
     if not skip_migrations:
         console.print("\n[bold]Step 4: Database Migrations[/bold]")
-        if Confirm.ask("Run database migrations?", default=True):
-            if run_migrations():
-                # Step 5: Admin user (only if migrations succeeded)
-                if not skip_admin:
-                    console.print("\n[bold]Step 5: Admin User[/bold]")
-                    if Confirm.ask("Create super admin user?", default=True):
-                        console.print("[yellow]Run:[/yellow] fastpy make:admin")
+        if (
+            Confirm.ask("Run database migrations?", default=True)
+            and run_migrations()
+            and not skip_admin
+        ):
+            # Step 5: Admin user (only if migrations succeeded)
+            console.print("\n[bold]Step 5: Admin User[/bold]")
+            if Confirm.ask("Create super admin user?", default=True):
+                console.print("[yellow]Run:[/yellow] fastpy make:admin")
 
     # Step 6: Pre-commit hooks
     if not skip_hooks:

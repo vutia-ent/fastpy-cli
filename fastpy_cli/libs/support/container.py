@@ -4,8 +4,8 @@ Service Container - Dependency injection container for Fastpy.
 Inspired by Laravel's IoC container.
 """
 
-from typing import Any, Callable, Dict, Optional, Type, TypeVar, Union
 import threading
+from typing import Any, Callable, Optional, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -39,15 +39,15 @@ class Container:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._bindings: Dict[str, Dict[str, Any]] = {}
-                    cls._instance._instances: Dict[str, Any] = {}
-                    cls._instance._aliases: Dict[str, str] = {}
+                    cls._instance._bindings: dict[str, dict[str, Any]] = {}
+                    cls._instance._instances: dict[str, Any] = {}
+                    cls._instance._aliases: dict[str, str] = {}
         return cls._instance
 
     def bind(
         self,
         abstract: str,
-        concrete: Union[Type[T], Callable[["Container"], T]],
+        concrete: Union[type[T], Callable[["Container"], T]],
         shared: bool = False,
     ) -> "Container":
         """
@@ -67,7 +67,7 @@ class Container:
     def singleton(
         self,
         abstract: str,
-        concrete: Union[Type[T], Callable[["Container"], T]],
+        concrete: Union[type[T], Callable[["Container"], T]],
     ) -> "Container":
         """Bind a singleton to the container."""
         return self.bind(abstract, concrete, shared=True)
@@ -82,7 +82,7 @@ class Container:
         self._aliases[alias] = abstract
         return self
 
-    def make(self, abstract: str, parameters: Optional[Dict[str, Any]] = None) -> Any:
+    def make(self, abstract: str, parameters: Optional[dict[str, Any]] = None) -> Any:
         """
         Resolve an abstract from the container.
 
