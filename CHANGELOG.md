@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.3] - 2025-12-06
+
+### Fixed
+
+- Fixed lint errors in libs directory (exception chaining, import sorting, deprecated typing)
+- All tests passing on Python 3.9-3.13, Linux, macOS, and Windows
+
+---
+
 ## [1.1.2] - 2025-12-06
 
 ### Added
