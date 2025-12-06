@@ -11,6 +11,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2025-12-06
+
+### Added
+
+- **`fastpy install` command**: One-command project setup that creates venv, installs dependencies, and runs setup wizard
+  - `fastpy install` - Full install with setup
+  - `fastpy install --skip-setup` - Install deps only
+  - `fastpy install -r requirements-dev.txt` - Use different requirements file
+
+- **`--install` flag for `fastpy new`**: Create and setup project in one command
+  - `fastpy new my-api --install` - Creates project, venv, installs deps automatically
+
+- **VitePress documentation site**: Full documentation with guides for all features
+  - Installation guide with troubleshooting
+  - Quick start guide
+  - Commands reference
+  - Configuration guide
+  - AI generation guide
+  - Individual documentation for all libs (Http, Mail, Cache, Storage, Queue, Events, Notifications, Hash, Crypt)
+
+### Improved
+
+- Updated README with simplified quick start workflow
+- Added Setup Commands section to README
+- Streamlined project creation experience
+
+---
+
 ## [1.1.9] - 2025-12-06
 
 ### Fixed
