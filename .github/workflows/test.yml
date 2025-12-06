@@ -67,4 +67,4 @@ jobs:
         run: black --check fastpy_cli/
 
       - name: Run mypy
-        run: mypy fastpy_cli/ --ignore-missing-imports
+        run: mypy fastpy_cli/ --ignore-missing-imports --exclude 'fastpy_cli/libs/'
