@@ -624,7 +624,7 @@ def update_env_file(key: str, value: str, env_path: Path = Path(".env")) -> bool
 @app.command("ai:config")
 def ai_config_command(
     provider: Optional[str] = typer.Option(
-        None, "--provider", "-p", help="Set AI provider: anthropic, openai, ollama"
+        None, "--provider", "-p", help="Set AI provider: anthropic, openai, google, groq, ollama"
     ),
     key: Optional[str] = typer.Option(
         None, "--key", "-k", help="Set API key (saves to .env file)"
@@ -652,6 +652,8 @@ def ai_config_command(
     Supported Providers:
         anthropic  - Claude (requires ANTHROPIC_API_KEY)
         openai     - GPT-4 (requires OPENAI_API_KEY)
+        google     - Gemini (requires GOOGLE_API_KEY)
+        groq       - Groq Cloud (requires GROQ_API_KEY)
         ollama     - Local LLMs (free, no API key needed)
     """
     from rich.prompt import Prompt
@@ -676,10 +678,13 @@ def ai_config_command(
             env_var = {
                 "anthropic": "ANTHROPIC_API_KEY",
                 "openai": "OPENAI_API_KEY",
+                "google": "GOOGLE_API_KEY",
+                "groq": "GROQ_API_KEY",
             }.get(target_provider)
 
             if not env_var:
                 console.print(f"[red]Error:[/red] Unknown provider: {target_provider}")
+                console.print("[dim]Available: anthropic, openai, google, groq, ollama[/dim]")
                 raise typer.Exit(1)
 
             # Update .env file
@@ -693,9 +698,10 @@ def ai_config_command(
     # If provider specified, update config
     if provider:
         provider = provider.lower()
-        if provider not in ["anthropic", "openai", "ollama"]:
+        valid_providers = ["anthropic", "openai", "google", "groq", "ollama"]
+        if provider not in valid_providers:
             console.print(f"[red]Error:[/red] Unknown provider: {provider}")
-            console.print("[dim]Available: anthropic, openai, ollama[/dim]")
+            console.print(f"[dim]Available: {', '.join(valid_providers)}[/dim]")
             raise typer.Exit(1)
 
         # Update config file
@@ -713,33 +719,62 @@ def ai_config_command(
 
         console.print(f"[green]✓[/green] AI provider set to: [cyan]{provider}[/cyan]")
 
+        # Provider-specific instructions
+        provider_info = {
+            "anthropic": {
+                "env_var": "ANTHROPIC_API_KEY",
+                "key_url": "https://console.anthropic.com",
+                "ai_init": "claude",
+            },
+            "openai": {
+                "env_var": "OPENAI_API_KEY",
+                "key_url": "https://platform.openai.com/api-keys",
+                "ai_init": None,
+            },
+            "google": {
+                "env_var": "GOOGLE_API_KEY",
+                "key_url": "https://aistudio.google.com/apikey",
+                "ai_init": "gemini",
+            },
+            "groq": {
+                "env_var": "GROQ_API_KEY",
+                "key_url": "https://console.groq.com/keys",
+                "ai_init": None,
+            },
+            "ollama": {
+                "env_var": None,
+                "key_url": None,
+                "ai_init": None,
+            },
+        }
+
+        info = provider_info.get(provider, {})
+
         # Show next steps only if key wasn't just set
         if not key:
-            if provider == "anthropic":
-                existing_key = os.environ.get("ANTHROPIC_API_KEY")
+            if info.get("env_var"):
+                existing_key = os.environ.get(info["env_var"])
                 if not existing_key:
                     console.print()
                     console.print("[yellow]Set your API key:[/yellow]")
                     console.print(f"  fastpy ai:config -k YOUR_API_KEY")
                     console.print("  [dim]or[/dim]")
-                    console.print("  export ANTHROPIC_API_KEY=your-key-here")
+                    console.print(f"  export {info['env_var']}=your-key-here")
                     console.print()
-                    console.print("[dim]Get your key at: https://console.anthropic.com[/dim]")
-            elif provider == "openai":
-                existing_key = os.environ.get("OPENAI_API_KEY")
-                if not existing_key:
-                    console.print()
-                    console.print("[yellow]Set your API key:[/yellow]")
-                    console.print(f"  fastpy ai:config -k YOUR_API_KEY")
-                    console.print("  [dim]or[/dim]")
-                    console.print("  export OPENAI_API_KEY=your-key-here")
-                    console.print()
-                    console.print("[dim]Get your key at: https://platform.openai.com[/dim]")
+                    console.print(f"[dim]Get your key at: {info['key_url']}[/dim]")
             elif provider == "ollama":
                 console.print()
                 console.print("[dim]Ollama runs locally - no API key needed[/dim]")
                 console.print("[dim]Start with: ollama serve[/dim]")
                 console.print("[dim]Download at: https://ollama.ai[/dim]")
+
+        # Suggest running ai:init if applicable and in a fastpy project
+        if info.get("ai_init"):
+            project_cli = Path("cli.py")
+            if project_cli.exists():
+                console.print()
+                console.print("[yellow]Initialize AI assistant config:[/yellow]")
+                console.print(f"  fastpy ai:init {info['ai_init']}")
 
     # Exit if we set provider or key
     if provider or key:

@@ -389,6 +389,105 @@ class OllamaProvider(AIProvider):
             return None
 
 
+class GoogleProvider(AIProvider):
+    """Google Gemini AI provider."""
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        config = get_config()
+        self.api_key = api_key
+        self.model = model or config.get("ai", "google_model", "gemini-2.0-flash")
+        self.timeout = config.ai_timeout
+        self.max_retries = config.ai_max_retries
+
+    def generate(self, prompt: str) -> Optional[str]:
+        log_debug(f"Using Google Gemini model: {self.model}")
+
+        def make_request():
+            return httpx.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent",
+                params={"key": self.api_key},
+                json={
+                    "contents": [
+                        {
+                            "parts": [
+                                {"text": f"{SYSTEM_PROMPT}\n\nUser request: {prompt}"}
+                            ]
+                        }
+                    ],
+                    "generationConfig": {
+                        "temperature": 0.7,
+                        "maxOutputTokens": 4096,
+                    },
+                },
+                timeout=float(self.timeout),
+            )
+
+        try:
+            response = self._make_request_with_retry(make_request, self.max_retries)
+            if response is None:
+                return None
+
+            data = response.json()
+            # Extract text from Gemini response
+            candidates = data.get("candidates", [])
+            if candidates and candidates[0].get("content", {}).get("parts"):
+                return candidates[0]["content"]["parts"][0].get("text", "")
+
+            log_error(f"Unexpected Google response format: {data}")
+            return None
+
+        except Exception as e:
+            log_error(f"Failed to parse Google response: {e}")
+            console.print("[red]Error:[/red] Invalid response from Google API")
+            return None
+
+
+class GroqProvider(AIProvider):
+    """Groq Cloud AI provider (fast inference)."""
+
+    def __init__(self, api_key: str, model: Optional[str] = None):
+        config = get_config()
+        self.api_key = api_key
+        self.model = model or config.get("ai", "groq_model", "llama-3.3-70b-versatile")
+        self.timeout = config.ai_timeout
+        self.max_retries = config.ai_max_retries
+
+    def generate(self, prompt: str) -> Optional[str]:
+        log_debug(f"Using Groq model: {self.model}")
+
+        def make_request():
+            return httpx.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 4096,
+                },
+                timeout=float(self.timeout),
+            )
+
+        try:
+            response = self._make_request_with_retry(make_request, self.max_retries)
+            if response is None:
+                return None
+
+            data = response.json()
+            return data["choices"][0]["message"]["content"]
+
+        except Exception as e:
+            log_error(f"Failed to parse Groq response: {e}")
+            console.print("[red]Error:[/red] Invalid response from Groq API")
+            return None
+
+
 def get_provider(
     provider: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -396,7 +495,7 @@ def get_provider(
     """Get the appropriate AI provider based on configuration.
 
     Args:
-        provider: Provider name (anthropic, openai, ollama)
+        provider: Provider name (anthropic, openai, google, groq, ollama)
         api_key: Optional API key override
 
     Returns:
@@ -427,6 +526,24 @@ def get_provider(
             return None
         return OpenAIProvider(key)
 
+    elif provider == "google":
+        key = api_key or os.environ.get("GOOGLE_API_KEY")
+        if not key:
+            console.print("[red]Error:[/red] GOOGLE_API_KEY not set")
+            console.print("[dim]Set it with: export GOOGLE_API_KEY=your-key[/dim]")
+            console.print("[dim]Get your key at: https://aistudio.google.com/apikey[/dim]")
+            return None
+        return GoogleProvider(key)
+
+    elif provider == "groq":
+        key = api_key or os.environ.get("GROQ_API_KEY")
+        if not key:
+            console.print("[red]Error:[/red] GROQ_API_KEY not set")
+            console.print("[dim]Set it with: export GROQ_API_KEY=your-key[/dim]")
+            console.print("[dim]Get your key at: https://console.groq.com/keys[/dim]")
+            return None
+        return GroqProvider(key)
+
     elif provider == "ollama":
         model = os.environ.get("OLLAMA_MODEL") or config.get("ai", "ollama_model")
         host = os.environ.get("OLLAMA_HOST") or config.get("ai", "ollama_host")
@@ -434,7 +551,7 @@ def get_provider(
 
     else:
         console.print(f"[red]Error:[/red] Unknown provider: {provider}")
-        console.print("[dim]Available: anthropic, openai, ollama[/dim]")
+        console.print("[dim]Available: anthropic, openai, google, groq, ollama[/dim]")
         return None
 
 
