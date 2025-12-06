@@ -1898,8 +1898,43 @@ def init_command(
 
 # Shell integration script content
 SHELL_INTEGRATION_SCRIPT = '''# Fastpy Shell Integration
-# Enables auto-cd and auto-activate for fastpy commands
+# Enables auto-cd, auto-activate, and global venv activation
 
+# Track the last activated venv to avoid re-activating
+_FASTPY_LAST_VENV=""
+
+# Check if current directory is a fastpy project
+_fastpy_is_project() {
+    [[ -f "cli.py" && -d "app" ]] || [[ -f "cli.py" && -f "main.py" ]]
+}
+
+# Auto-activate venv when entering a fastpy project
+_fastpy_auto_activate() {
+    if _fastpy_is_project && [[ -f "venv/bin/activate" ]]; then
+        local venv_path="$(pwd)/venv"
+        # Only activate if not already in this venv
+        if [[ "$VIRTUAL_ENV" != "$venv_path" ]]; then
+            source venv/bin/activate
+            _FASTPY_LAST_VENV="$venv_path"
+            echo -e "\\033[1;32m✓ Fastpy venv activated\\033[0m"
+        fi
+    elif [[ -n "$_FASTPY_LAST_VENV" && "$VIRTUAL_ENV" == "$_FASTPY_LAST_VENV" ]]; then
+        # Left a fastpy project, deactivate
+        deactivate 2>/dev/null
+        _FASTPY_LAST_VENV=""
+        echo -e "\\033[33m○ Venv deactivated\\033[0m"
+    fi
+}
+
+# Override cd to auto-activate/deactivate
+cd() {
+    builtin cd "$@" && _fastpy_auto_activate
+}
+
+# Also check on shell startup (in case terminal opens in a project)
+_fastpy_auto_activate
+
+# Fastpy command wrapper
 fastpy() {
     if [[ "$1" == "new" && -n "$2" ]]; then
         local project_name="" no_install=false
@@ -1913,13 +1948,12 @@ fastpy() {
         if [[ $rc -eq 0 && "$no_install" == false && -d "$project_name" ]]; then
             echo -e "\\n\\033[1;34mEntering project directory...\\033[0m"
             cd "$project_name"
-            [[ -f "venv/bin/activate" ]] && source venv/bin/activate && echo -e "\\033[1;32m✓ Ready! Run: fastpy serve\\033[0m"
         fi
         return $rc
     elif [[ "$1" == "install" ]]; then
         command fastpy "$@"
         local rc=$?
-        [[ $rc -eq 0 && -f "venv/bin/activate" ]] && source venv/bin/activate && echo -e "\\n\\033[1;32m✓ Venv activated!\\033[0m"
+        [[ $rc -eq 0 ]] && _fastpy_auto_activate
         return $rc
     else
         command fastpy "$@"
@@ -1933,8 +1967,9 @@ def shell_install_command() -> None:
     """Install shell integration for auto-cd and auto-activate.
 
     Adds a shell function to your .zshrc or .bashrc that:
+    - Auto-activate venv when cd'ing into a fastpy project
+    - Auto-deactivate when leaving a project
     - Auto-cd into project after 'fastpy new'
-    - Auto-activate venv after project creation or 'fastpy install'
 
     Examples:
         fastpy shell:install
@@ -1952,30 +1987,42 @@ def shell_install_command() -> None:
     console.print(
         Panel.fit(
             "[bold blue]Shell Integration[/bold blue]\n"
-            "[dim]Auto-cd and auto-activate for fastpy[/dim]",
+            "[dim]Global auto-activate for fastpy projects[/dim]",
             border_style="blue",
         )
     )
     console.print()
 
-    # Check if already installed
+    # Check if already installed - offer to update
     existing_content = shell_config.read_text() if shell_config.exists() else ""
     if "# Fastpy Shell Integration" in existing_content:
-        console.print("[green]✓[/green] Shell integration already installed")
+        console.print("[yellow]![/yellow] Shell integration already installed")
         console.print()
-        console.print(f"[dim]Location: {shell_config}[/dim]")
-        console.print()
-        console.print("[bold]Features enabled:[/bold]")
-        console.print("  • [cyan]fastpy new my-api[/cyan] → auto-cd + activate")
-        console.print("  • [cyan]fastpy install[/cyan] → auto-activate venv")
+        if typer.confirm("Update to latest version?", default=True):
+            # Remove old integration by finding the marker and removing everything after
+            marker_idx = existing_content.find("# Fastpy Shell Integration")
+            if marker_idx > 0:
+                cleaned = existing_content[:marker_idx].rstrip() + "\n\n"
+            else:
+                cleaned = ""
+            # Write cleaned content + new integration
+            shell_config.write_text(cleaned + SHELL_INTEGRATION_SCRIPT + "\n")
+            console.print()
+            console.print("[green]✓[/green] Shell integration updated!")
+            console.print()
+            console.print("[bold]To activate now, run:[/bold]")
+            console.print(f"  [cyan]source {shell_config}[/cyan]")
+        else:
+            console.print("Aborted.")
         return
 
-    # Confirm installation
+    # New installation
     console.print(f"This will add shell integration to: [cyan]{shell_config}[/cyan]")
     console.print()
     console.print("[bold]Features:[/bold]")
-    console.print("  • Auto-cd into project after [cyan]fastpy new[/cyan]")
-    console.print("  • Auto-activate venv after [cyan]fastpy install[/cyan]")
+    console.print("  • Auto-activate venv when [cyan]cd[/cyan]'ing into a project")
+    console.print("  • Auto-deactivate when leaving a project")
+    console.print("  • Auto-cd after [cyan]fastpy new[/cyan]")
     console.print()
 
     if not typer.confirm("Install shell integration?", default=True):
@@ -1987,7 +2034,7 @@ def shell_install_command() -> None:
         f.write(f"\n{SHELL_INTEGRATION_SCRIPT}\n")
 
     console.print()
-    console.print(f"[green]✓[/green] Shell integration installed to {shell_config}")
+    console.print("[green]✓[/green] Shell integration installed!")
     console.print()
     console.print("[bold]To activate now, run:[/bold]")
     console.print(f"  [cyan]source {shell_config}[/cyan]")

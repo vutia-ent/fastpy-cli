@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.9] - 2025-12-06
+
+### Added
+
+- **Global auto-activate**: Shell integration now auto-activates venv when `cd`'ing into any fastpy project
+  - No more manual `source venv/bin/activate` needed!
+  - Auto-deactivates when leaving a project
+  - Works on shell startup if terminal opens in a project
+- **Shell update command**: `fastpy shell:install` now offers to update existing integration
+
+### Improved
+
+- Shell integration is now smarter - tracks which venv it activated to avoid conflicts
+- Better detection of fastpy projects (checks for cli.py + app/ or cli.py + main.py)
+
+---
+
 ## [1.2.8] - 2025-12-06
 
 ### Improved

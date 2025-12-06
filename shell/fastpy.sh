@@ -1,82 +1,66 @@
 #!/bin/bash
 # Fastpy Shell Integration
-# Source this file in your .zshrc or .bashrc:
-#   source /path/to/fastpy.sh
-# Or install with:
-#   fastpy shell:install
+# Enables auto-cd, auto-activate, and global venv activation
+#
+# Install with: fastpy shell:install
+# Or manually: source /path/to/fastpy.sh
 
-# Main fastpy wrapper function
-fastpy() {
-    # Check if this is a 'new' command with a project name
-    if [[ "$1" == "new" && -n "$2" ]]; then
-        local project_name=""
-        local no_install=false
-        local args=("$@")
+# Track the last activated venv to avoid re-activating
+_FASTPY_LAST_VENV=""
 
-        # Parse arguments to find project name and --no-install flag
-        for ((i=1; i<${#args[@]}; i++)); do
-            arg="${args[$i]}"
-            if [[ "$arg" == "--no-install" ]]; then
-                no_install=true
-            elif [[ ! "$arg" =~ ^- && -z "$project_name" ]]; then
-                project_name="$arg"
-            fi
-        done
+# Check if current directory is a fastpy project
+_fastpy_is_project() {
+    [[ -f "cli.py" && -d "app" ]] || [[ -f "cli.py" && -f "main.py" ]]
+}
 
-        # Run the actual fastpy command
-        command fastpy "$@"
-        local exit_code=$?
-
-        # Auto-cd and activate unless --no-install was used
-        if [[ $exit_code -eq 0 && "$no_install" == false && -n "$project_name" ]]; then
-            if [[ -d "$project_name" ]]; then
-                echo ""
-                echo -e "\033[1;34mEntering project directory...\033[0m"
-                cd "$project_name" || return 1
-
-                # Activate virtual environment if it exists
-                if [[ -f "venv/bin/activate" ]]; then
-                    echo -e "\033[1;34mActivating virtual environment...\033[0m"
-                    source venv/bin/activate
-                    echo -e "\033[1;32m✓ Ready to develop!\033[0m"
-                    echo ""
-                    echo -e "Start the server with: \033[36mfastpy serve\033[0m"
-                elif [[ -f "venv/Scripts/activate" ]]; then
-                    # Windows Git Bash
-                    echo -e "\033[1;34mActivating virtual environment...\033[0m"
-                    source venv/Scripts/activate
-                    echo -e "\033[1;32m✓ Ready to develop!\033[0m"
-                    echo ""
-                    echo -e "Start the server with: \033[36mfastpy serve\033[0m"
-                fi
-            fi
+# Auto-activate venv when entering a fastpy project
+_fastpy_auto_activate() {
+    if _fastpy_is_project && [[ -f "venv/bin/activate" ]]; then
+        local venv_path="$(pwd)/venv"
+        # Only activate if not already in this venv
+        if [[ "$VIRTUAL_ENV" != "$venv_path" ]]; then
+            source venv/bin/activate
+            _FASTPY_LAST_VENV="$venv_path"
+            echo -e "\033[1;32m✓ Fastpy venv activated\033[0m"
         fi
+    elif [[ -n "$_FASTPY_LAST_VENV" && "$VIRTUAL_ENV" == "$_FASTPY_LAST_VENV" ]]; then
+        # Left a fastpy project, deactivate
+        deactivate 2>/dev/null
+        _FASTPY_LAST_VENV=""
+        echo -e "\033[33m○ Venv deactivated\033[0m"
+    fi
+}
 
-        return $exit_code
+# Override cd to auto-activate/deactivate
+cd() {
+    builtin cd "$@" && _fastpy_auto_activate
+}
 
-    # Check if this is 'install' command (activate venv after)
+# Also check on shell startup (in case terminal opens in a project)
+_fastpy_auto_activate
+
+# Fastpy command wrapper
+fastpy() {
+    if [[ "$1" == "new" && -n "$2" ]]; then
+        local project_name="" no_install=false
+        for arg in "$@"; do
+            [[ "$arg" == "--no-install" ]] && no_install=true
+            [[ ! "$arg" =~ ^- && "$arg" != "new" && -z "$project_name" ]] && project_name="$arg"
+        done
+        command fastpy "$@"
+        local rc=$?
+        # Auto-cd and activate unless --no-install was used
+        if [[ $rc -eq 0 && "$no_install" == false && -d "$project_name" ]]; then
+            echo -e "\n\033[1;34mEntering project directory...\033[0m"
+            cd "$project_name"
+        fi
+        return $rc
     elif [[ "$1" == "install" ]]; then
         command fastpy "$@"
-        local exit_code=$?
-
-        # Activate venv after successful install
-        if [[ $exit_code -eq 0 ]]; then
-            if [[ -f "venv/bin/activate" ]]; then
-                echo ""
-                echo -e "\033[1;34mActivating virtual environment...\033[0m"
-                source venv/bin/activate
-                echo -e "\033[1;32m✓ Virtual environment activated!\033[0m"
-            elif [[ -f "venv/Scripts/activate" ]]; then
-                echo ""
-                echo -e "\033[1;34mActivating virtual environment...\033[0m"
-                source venv/Scripts/activate
-                echo -e "\033[1;32m✓ Virtual environment activated!\033[0m"
-            fi
-        fi
-
-        return $exit_code
+        local rc=$?
+        [[ $rc -eq 0 ]] && _fastpy_auto_activate
+        return $rc
     else
-        # All other commands - just pass through
         command fastpy "$@"
     fi
 }
@@ -86,8 +70,3 @@ alias fp='fastpy'
 alias fps='fastpy serve'
 alias fpi='fastpy install'
 alias fpn='fastpy new'
-
-# Print success message when sourced
-if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
-    echo "Fastpy shell integration loaded. Use 'fastpy' with auto-cd and auto-activate."
-fi
