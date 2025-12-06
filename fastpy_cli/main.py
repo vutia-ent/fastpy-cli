@@ -232,9 +232,7 @@ def init_git_repo(project_path: Path) -> None:
 @app.command()
 def new(
     project_name: str = typer.Argument(..., help="Name of the project to create"),
-    no_git: bool = typer.Option(
-        False, "--no-git", help="Don't initialize a git repository"
-    ),
+    no_git: bool = typer.Option(False, "--no-git", help="Don't initialize a git repository"),
     branch: str = typer.Option("main", "--branch", "-b", help="Branch to clone from"),
 ) -> None:
     """Create a new Fastpy project.
@@ -254,9 +252,7 @@ def new(
 
     # Check git is installed
     if not check_git_installed():
-        console.print(
-            "[red]Error:[/red] Git is not installed. Please install git first."
-        )
+        console.print("[red]Error:[/red] Git is not installed. Please install git first.")
         raise typer.Exit(1)
 
     console.print()
@@ -337,9 +333,7 @@ def upgrade() -> None:
     if result.returncode == 0:
         console.print("[green]✓[/green] Fastpy CLI upgraded successfully!")
     else:
-        console.print(
-            "[red]Error:[/red] Failed to upgrade. Try: pip install --upgrade fastpy-cli"
-        )
+        console.print("[red]Error:[/red] Failed to upgrade. Try: pip install --upgrade fastpy-cli")
 
 
 @app.command()
@@ -348,12 +342,8 @@ def ai(
     provider: Optional[str] = typer.Option(
         None, "--provider", "-p", help="AI provider: anthropic, openai, ollama"
     ),
-    execute: bool = typer.Option(
-        False, "--execute", "-e", help="Execute commands automatically"
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", "-d", help="Show commands without executing"
-    ),
+    execute: bool = typer.Option(False, "--execute", "-e", help="Execute commands automatically"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show commands without executing"),
 ) -> None:
     """Generate resources using AI.
 
@@ -433,15 +423,11 @@ def ai(
                         console.print(
                             f"[red]Command failed with exit code {result.returncode}[/red]"
                         )
-                        if not typer.confirm(
-                            "Continue with remaining commands?", default=True
-                        ):
+                        if not typer.confirm("Continue with remaining commands?", default=True):
                             break
                 except ValueError as e:
                     console.print(f"[red]Error:[/red] {e}")
-                    if not typer.confirm(
-                        "Continue with remaining commands?", default=True
-                    ):
+                    if not typer.confirm("Continue with remaining commands?", default=True):
                         break
 
                 console.print()
@@ -509,17 +495,13 @@ def ai(
         console.print()
         console.print("[green]✓[/green] Done!")
     else:
-        console.print(
-            "[dim]Commands not executed. Use --execute to run automatically.[/dim]"
-        )
+        console.print("[dim]Commands not executed. Use --execute to run automatically.[/dim]")
 
 
 @app.command()
 def config(
     init: bool = typer.Option(False, "--init", help="Initialize config file"),
-    show_path: bool = typer.Option(
-        False, "--path", help="Show config file path"
-    ),
+    show_path: bool = typer.Option(False, "--path", help="Show config file path"),
 ) -> None:
     """Show or initialize AI configuration.
 
@@ -623,12 +605,8 @@ def ai_config_command(
     provider: Optional[str] = typer.Option(
         None, "--provider", "-p", help="Set AI provider: anthropic, openai, google, groq, ollama"
     ),
-    key: Optional[str] = typer.Option(
-        None, "--key", "-k", help="Set API key (saves to .env file)"
-    ),
-    test: bool = typer.Option(
-        False, "--test", "-t", help="Test the AI connection"
-    ),
+    key: Optional[str] = typer.Option(None, "--key", "-k", help="Set API key (saves to .env file)"),
+    test: bool = typer.Option(False, "--test", "-t", help="Test the AI connection"),
     env_file: Optional[str] = typer.Option(
         None, "--env", "-e", help="Path to .env file (default: ./.env)"
     ),
@@ -705,6 +683,7 @@ def ai_config_command(
             init_config_file()
 
         import toml
+
         config_data = toml.load(CONFIG_FILE)
         if "ai" not in config_data:
             config_data["ai"] = {}
@@ -782,43 +761,44 @@ def ai_config_command(
         console.print(f"Testing [cyan]{current_provider}[/cyan] connection...")
         console.print()
 
-        def handle_api_error(status_code: int, response: "requests.Response", provider: str) -> None:
+        def handle_api_error(
+            status_code: int, response: "requests.Response", provider: str
+        ) -> None:
             """Display user-friendly error messages for API errors."""
             error_messages = {
                 401: (
                     "Invalid API key",
                     f"Your {provider} API key is invalid or has been revoked.\n"
-                    f"  Get a new key at: {'https://console.anthropic.com' if provider == 'Anthropic' else 'https://platform.openai.com/api-keys'}"
+                    f"  Get a new key at: {'https://console.anthropic.com' if provider == 'Anthropic' else 'https://platform.openai.com/api-keys'}",
                 ),
                 403: (
                     "Access forbidden",
                     "Your API key doesn't have permission for this operation.\n"
-                    "  Check your account permissions and API key scopes."
+                    "  Check your account permissions and API key scopes.",
                 ),
                 429: (
                     "Rate limit exceeded",
                     "You've hit the API rate limit. This usually means:\n"
                     "  • You've exceeded your quota or credit limit\n"
                     "  • Too many requests in a short period\n"
-                    f"  Check your usage at: {'https://console.anthropic.com/settings/billing' if provider == 'Anthropic' else 'https://platform.openai.com/usage'}"
+                    f"  Check your usage at: {'https://console.anthropic.com/settings/billing' if provider == 'Anthropic' else 'https://platform.openai.com/usage'}",
                 ),
                 500: (
                     "Server error",
-                    f"{provider} is experiencing issues. Try again in a few minutes."
+                    f"{provider} is experiencing issues. Try again in a few minutes.",
                 ),
                 502: (
                     "Bad gateway",
-                    f"{provider} service is temporarily unavailable. Try again shortly."
+                    f"{provider} service is temporarily unavailable. Try again shortly.",
                 ),
                 503: (
                     "Service unavailable",
-                    f"{provider} is under maintenance or overloaded. Try again later."
+                    f"{provider} is under maintenance or overloaded. Try again later.",
                 ),
             }
 
             title, message = error_messages.get(
-                status_code,
-                ("Unknown error", f"Unexpected error from {provider} API.")
+                status_code, ("Unknown error", f"Unexpected error from {provider} API.")
             )
 
             console.print(f"[red]✗[/red] {title} (HTTP {status_code})")
@@ -871,7 +851,9 @@ def ai_config_command(
                 console.print("[dim]The Anthropic API took too long to respond. Try again.[/dim]")
             except requests.exceptions.ConnectionError:
                 console.print("[red]✗[/red] Connection failed")
-                console.print("[dim]Could not connect to Anthropic API. Check your internet connection.[/dim]")
+                console.print(
+                    "[dim]Could not connect to Anthropic API. Check your internet connection.[/dim]"
+                )
             except Exception as e:
                 console.print(f"[red]✗[/red] Unexpected error: {e}")
 
@@ -904,7 +886,9 @@ def ai_config_command(
                 console.print("[dim]The OpenAI API took too long to respond. Try again.[/dim]")
             except requests.exceptions.ConnectionError:
                 console.print("[red]✗[/red] Connection failed")
-                console.print("[dim]Could not connect to OpenAI API. Check your internet connection.[/dim]")
+                console.print(
+                    "[dim]Could not connect to OpenAI API. Check your internet connection.[/dim]"
+                )
             except Exception as e:
                 console.print(f"[red]✗[/red] Unexpected error: {e}")
 
@@ -916,7 +900,9 @@ def ai_config_command(
                     models = response.json().get("models", [])
                     console.print("[green]✓[/green] Ollama is running!")
                     if models:
-                        console.print(f"  Available models: {', '.join(m['name'] for m in models[:5])}")
+                        console.print(
+                            f"  Available models: {', '.join(m['name'] for m in models[:5])}"
+                        )
                 else:
                     console.print(f"[red]✗[/red] Ollama error: {response.status_code}")
             except requests.exceptions.ConnectionError:
@@ -1022,14 +1008,8 @@ def doctor() -> None:
 
     # Python version check
     py_version = sys.version_info
-    py_status = (
-        "[green]✓[/green]"
-        if py_version >= (3, 9)
-        else "[red]✗[/red]"
-    )
-    console.print(
-        f"{py_status} Python {py_version.major}.{py_version.minor}.{py_version.micro}"
-    )
+    py_status = "[green]✓[/green]" if py_version >= (3, 9) else "[red]✗[/red]"
+    console.print(f"{py_status} Python {py_version.major}.{py_version.minor}.{py_version.micro}")
     if py_version < (3, 9):
         issues.append("Python 3.9 or higher is required")
 
@@ -1043,7 +1023,9 @@ def doctor() -> None:
     # Config file check
     config_exists = CONFIG_FILE.exists()
     config_status = "[green]✓[/green]" if config_exists else "[yellow]○[/yellow]"
-    console.print(f"{config_status} Config file {'exists' if config_exists else 'not found (optional)'}")
+    console.print(
+        f"{config_status} Config file {'exists' if config_exists else 'not found (optional)'}"
+    )
     if not config_exists:
         warnings.append("No config file found. Run 'fastpy config --init' to create one")
 
@@ -1069,6 +1051,7 @@ def doctor() -> None:
     ollama_running = False
     try:
         import httpx
+
         response = httpx.get("http://localhost:11434/api/tags", timeout=2.0)
         ollama_running = response.status_code == 200
     except Exception:
@@ -1120,9 +1103,7 @@ def doctor() -> None:
 
 @app.command("init")
 def init_command(
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Overwrite existing config"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing config"),
 ) -> None:
     """Initialize Fastpy configuration.
 
@@ -1154,17 +1135,12 @@ def init_command(
 @app.command("libs")
 def libs_command(
     lib_name: Optional[str] = typer.Argument(
-        None, help="Name of lib to install (http, mail, cache, storage, queue, events, notifications, hash, crypt)"
+        None,
+        help="Name of lib to install (http, mail, cache, storage, queue, events, notifications, hash, crypt)",
     ),
-    list_libs: bool = typer.Option(
-        False, "--list", "-l", help="List all available libs"
-    ),
-    all_libs: bool = typer.Option(
-        False, "--all", "-a", help="Install all libs"
-    ),
-    show_usage: bool = typer.Option(
-        False, "--usage", "-u", help="Show usage examples for a lib"
-    ),
+    list_libs: bool = typer.Option(False, "--list", "-l", help="List all available libs"),
+    all_libs: bool = typer.Option(False, "--all", "-a", help="Install all libs"),
+    show_usage: bool = typer.Option(False, "--usage", "-u", help="Show usage examples for a lib"),
 ) -> None:
     """Install and manage Fastpy libs (Laravel-style abstractions).
 
@@ -1203,7 +1179,9 @@ def libs_command(
         console.print(table)
         console.print()
         console.print("[bold]Usage:[/bold]")
-        console.print("  [cyan]from fastpy_cli.libs import Http, Mail, Cache, Storage, Queue, Event, Notify, Hash, Crypt[/cyan]")
+        console.print(
+            "  [cyan]from fastpy_cli.libs import Http, Mail, Cache, Storage, Queue, Event, Notify, Hash, Crypt[/cyan]"
+        )
         console.print()
         console.print("[dim]Run 'fastpy libs <name> --usage' for detailed examples[/dim]")
         return
@@ -1262,9 +1240,13 @@ def _show_lib_info(key: str, lib: dict, show_usage: bool = False) -> None:
 @app.command("setup")
 def setup_command(
     skip_db: bool = typer.Option(False, "--skip-db", help="Skip database configuration"),
-    skip_migrations: bool = typer.Option(False, "--skip-migrations", help="Skip running migrations"),
+    skip_migrations: bool = typer.Option(
+        False, "--skip-migrations", help="Skip running migrations"
+    ),
     skip_admin: bool = typer.Option(False, "--skip-admin", help="Skip admin user creation"),
-    skip_hooks: bool = typer.Option(False, "--skip-hooks", help="Skip pre-commit hooks installation"),
+    skip_hooks: bool = typer.Option(
+        False, "--skip-hooks", help="Skip pre-commit hooks installation"
+    ),
 ) -> None:
     """Complete interactive project setup wizard.
 
@@ -1312,7 +1294,9 @@ def setup_env_command() -> None:
 
 @app.command("setup:db")
 def setup_db_command(
-    driver: Optional[str] = typer.Option(None, "--driver", "-d", help="Database driver (mysql, postgresql, sqlite)"),
+    driver: Optional[str] = typer.Option(
+        None, "--driver", "-d", help="Database driver (mysql, postgresql, sqlite)"
+    ),
     host: Optional[str] = typer.Option(None, "--host", "-h", help="Database host"),
     port: Optional[int] = typer.Option(None, "--port", "-p", help="Database port"),
     username: Optional[str] = typer.Option(None, "--username", "-u", help="Database username"),
@@ -1400,7 +1384,7 @@ def setup_hooks_command() -> None:
 def _show_lib_usage(lib_name: str) -> None:
     """Show usage examples for a lib."""
     examples = {
-        "http": '''
+        "http": """
   # GET request
   response = Http.get('https://api.example.com/users')
   data = response.json()
@@ -1418,8 +1402,8 @@ def _show_lib_usage(lib_name: str) -> None:
   Http.fake({'https://api.example.com/*': {'status': 200, 'json': {'ok': True}}})
   response = Http.get('https://api.example.com/test')
   Http.assert_sent('https://api.example.com/test')
-''',
-        "mail": '''
+""",
+        "mail": """
   # Send email with template
   Mail.to('user@example.com') \\
       .subject('Welcome!') \\
@@ -1439,8 +1423,8 @@ def _show_lib_usage(lib_name: str) -> None:
 
   # Use specific driver
   Mail.driver('sendgrid').to('user@example.com').send('template', data)
-''',
-        "cache": '''
+""",
+        "cache": """
   # Store value
   Cache.put('key', 'value', ttl=3600)  # 1 hour
 
@@ -1459,8 +1443,8 @@ def _show_lib_usage(lib_name: str) -> None:
 
   # Use specific driver
   Cache.store('redis').put('key', 'value')
-''',
-        "storage": '''
+""",
+        "storage": """
   # Store file
   Storage.put('avatars/user.jpg', file_content)
 
@@ -1480,8 +1464,8 @@ def _show_lib_usage(lib_name: str) -> None:
   # Use specific disk
   Storage.disk('s3').put('backups/data.zip', content)
   url = Storage.disk('s3').url('backups/data.zip')
-''',
-        "queue": '''
+""",
+        "queue": """
   # Define a job
   class SendEmailJob(Job):
       def __init__(self, user_id: int):
@@ -1506,8 +1490,8 @@ def _show_lib_usage(lib_name: str) -> None:
 
   # Use specific queue
   Queue.on('emails').push(SendEmailJob(user_id=1))
-''',
-        "events": '''
+""",
+        "events": """
   # Listen to events
   Event.listen('user.registered', lambda data: send_welcome_email(data['user']))
 
@@ -1527,8 +1511,8 @@ def _show_lib_usage(lib_name: str) -> None:
           print(f"User registered: {data['user'].id}")
 
   Event.subscribe(UserSubscriber())
-''',
-        "notifications": '''
+""",
+        "notifications": """
   # Define notification
   class OrderShippedNotification(Notification):
       def __init__(self, order):
@@ -1554,8 +1538,8 @@ def _show_lib_usage(lib_name: str) -> None:
   Notify.route('mail', 'guest@example.com') \\
       .route('slack', '#orders') \\
       .notify(OrderShippedNotification(order))
-''',
-        "hash": '''
+""",
+        "hash": """
   # Hash a password
   hashed = Hash.make('password')
 
@@ -1572,8 +1556,8 @@ def _show_lib_usage(lib_name: str) -> None:
 
   # Configure rounds
   Hash.configure('bcrypt', {'rounds': 14})
-''',
-        "crypt": '''
+""",
+        "crypt": """
   # Generate encryption key (do once, save to .env)
   key = Crypt.generate_key()
   # Add to .env: APP_KEY=<key>
@@ -1592,7 +1576,7 @@ def _show_lib_usage(lib_name: str) -> None:
 
   # Use specific driver
   encrypted = Crypt.driver('aes').encrypt('secret')
-''',
+""",
     }
 
     if lib_name in examples:

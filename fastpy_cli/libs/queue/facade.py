@@ -150,6 +150,7 @@ class QueueFake:
         """Record a pushed job."""
         if isinstance(job, dict):
             from fastpy_cli.libs.queue.manager import _DictJob
+
             job = _DictJob(job)
         self._pushed.append(job)
         return job.job_id
@@ -164,6 +165,7 @@ class QueueFake:
 
     def chain(self, jobs: list[Job]) -> str:
         from fastpy_cli.libs.queue.manager import _ChainJob
+
         return self.push(_ChainJob(jobs))
 
     def batch(self, jobs: list[Job]) -> JobBatch:
@@ -195,9 +197,7 @@ class QueueFake:
         matching = [j for j in self._pushed if isinstance(j, job_class)]
 
         if count is not None and len(matching) != count:
-            raise AssertionError(
-                f"Expected {count} {job_class.__name__} jobs, got {len(matching)}"
-            )
+            raise AssertionError(f"Expected {count} {job_class.__name__} jobs, got {len(matching)}")
 
         if not matching:
             raise AssertionError(f"No {job_class.__name__} jobs were pushed")
@@ -223,9 +223,7 @@ class QueueFake:
             ):
                 return True
 
-        raise AssertionError(
-            f"No {job_class.__name__} job with {kwargs} was pushed"
-        )
+        raise AssertionError(f"No {job_class.__name__} job with {kwargs} was pushed")
 
     def assert_nothing_pushed(self) -> bool:
         """Assert no jobs were pushed."""

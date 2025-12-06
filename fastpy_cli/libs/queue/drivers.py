@@ -229,6 +229,7 @@ class RedisDriver(QueueDriver):
         if self._client is None:
             try:
                 import redis
+
                 self._client = redis.Redis(
                     host=self.host,
                     port=self.port,
@@ -237,7 +238,9 @@ class RedisDriver(QueueDriver):
                     decode_responses=False,
                 )
             except ImportError as err:
-                raise ImportError("Redis driver requires redis package. Install with: pip install redis") from err
+                raise ImportError(
+                    "Redis driver requires redis package. Install with: pip install redis"
+                ) from err
         return self._client
 
     def _queue_key(self, queue: str) -> str:
@@ -382,7 +385,9 @@ class DatabaseDriver(QueueDriver):
                 metadata.create_all(self._engine)
 
             except ImportError as err:
-                raise ImportError("Database driver requires sqlalchemy. Install with: pip install sqlalchemy") from err
+                raise ImportError(
+                    "Database driver requires sqlalchemy. Install with: pip install sqlalchemy"
+                ) from err
 
         return self._engine
 
@@ -474,9 +479,7 @@ class DatabaseDriver(QueueDriver):
         engine = self._get_engine()
 
         with engine.connect() as conn:
-            result = conn.execute(
-                self._table.delete().where(self._table.c.id == job_id)
-            )
+            result = conn.execute(self._table.delete().where(self._table.c.id == job_id))
             conn.commit()
             return result.rowcount > 0
 
@@ -518,8 +521,6 @@ class DatabaseDriver(QueueDriver):
         engine = self._get_engine()
 
         with engine.connect() as conn:
-            result = conn.execute(
-                self._table.delete().where(self._table.c.queue == queue)
-            )
+            result = conn.execute(self._table.delete().where(self._table.c.queue == queue))
             conn.commit()
             return result.rowcount

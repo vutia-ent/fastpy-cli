@@ -161,9 +161,7 @@ def safe_execute_command(
             raise ValueError(f"Unsafe command rejected: {error}")
 
         if not is_safe_command(command):
-            raise ValueError(
-                "Command not in allowlist. Only Fastpy CLI commands are allowed."
-            )
+            raise ValueError("Command not in allowlist. Only Fastpy CLI commands are allowed.")
 
     # Parse command into arguments (safe, no shell injection)
     try:

@@ -87,13 +87,16 @@ class DatabaseChannel(NotificationChannel):
         # For now, we'll emit an event that can be handled
         from fastpy_cli.libs.events import Event
 
-        Event.dispatch("notification.stored", {
-            "notifiable_id": notifiable_id,
-            "notifiable_type": notifiable_type,
-            "notification_type": data.get("type", notification.__class__.__name__),
-            "data": data.get("data", data),
-            "read_at": None,
-        })
+        Event.dispatch(
+            "notification.stored",
+            {
+                "notifiable_id": notifiable_id,
+                "notifiable_type": notifiable_type,
+                "notification_type": data.get("type", notification.__class__.__name__),
+                "data": data.get("data", data),
+                "read_at": None,
+            },
+        )
 
         return True
 

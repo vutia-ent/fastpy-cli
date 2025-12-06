@@ -141,7 +141,8 @@ class NotificationFake:
     ) -> bool:
         """Assert a notification was sent to a notifiable."""
         matching = [
-            (n, notif) for n, notif in self._sent
+            (n, notif)
+            for n, notif in self._sent
             if n == notifiable and isinstance(notif, notification_class)
         ]
 
@@ -152,9 +153,7 @@ class NotificationFake:
             )
 
         if not matching:
-            raise AssertionError(
-                f"No {notification_class.__name__} was sent to {notifiable}"
-            )
+            raise AssertionError(f"No {notification_class.__name__} was sent to {notifiable}")
 
         return True
 
@@ -165,14 +164,13 @@ class NotificationFake:
     ) -> bool:
         """Assert a notification was not sent to a notifiable."""
         matching = [
-            (n, notif) for n, notif in self._sent
+            (n, notif)
+            for n, notif in self._sent
             if n == notifiable and isinstance(notif, notification_class)
         ]
 
         if matching:
-            raise AssertionError(
-                f"{notification_class.__name__} was sent to {notifiable}"
-            )
+            raise AssertionError(f"{notification_class.__name__} was sent to {notifiable}")
 
         return True
 
@@ -185,9 +183,7 @@ class NotificationFake:
     def assert_count(self, count: int) -> bool:
         """Assert the total number of notifications sent."""
         if len(self._sent) != count:
-            raise AssertionError(
-                f"Expected {count} notifications, got {len(self._sent)}"
-            )
+            raise AssertionError(f"Expected {count} notifications, got {len(self._sent)}")
         return True
 
     @property

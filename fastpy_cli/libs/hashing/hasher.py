@@ -46,9 +46,7 @@ class BcryptHasher(Hasher):
         try:
             import bcrypt
         except ImportError as err:
-            raise ImportError(
-                "bcrypt package required. Install with: pip install bcrypt"
-            ) from err
+            raise ImportError("bcrypt package required. Install with: pip install bcrypt") from err
 
         options = options or {}
         rounds = options.get("rounds", self.rounds)
@@ -61,14 +59,10 @@ class BcryptHasher(Hasher):
         try:
             import bcrypt
         except ImportError as err:
-            raise ImportError(
-                "bcrypt package required. Install with: pip install bcrypt"
-            ) from err
+            raise ImportError("bcrypt package required. Install with: pip install bcrypt") from err
 
         try:
-            return bcrypt.checkpw(
-                value.encode("utf-8"), hashed_value.encode("utf-8")
-            )
+            return bcrypt.checkpw(value.encode("utf-8"), hashed_value.encode("utf-8"))
         except (ValueError, TypeError):
             return False
 
@@ -165,6 +159,7 @@ class Argon2Hasher(Hasher):
         """Get Argon2 hash information."""
         try:
             from argon2 import extract_parameters
+
             params = extract_parameters(hashed_value)
             return {
                 "algorithm": "argon2",

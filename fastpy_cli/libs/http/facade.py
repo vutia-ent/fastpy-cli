@@ -200,6 +200,7 @@ class HttpFake:
         for pattern, response in self._responses.items():
             if "*" in pattern:
                 import fnmatch
+
                 if fnmatch.fnmatch(url, pattern):
                     return FakeResponse(response)
 
@@ -246,4 +247,5 @@ class FakeResponse:
     @property
     def body(self) -> str:
         import json
+
         return json.dumps(self._data) if self._data else ""

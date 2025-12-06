@@ -216,6 +216,7 @@ class RedisDriver(CacheDriver):
         if self._client is None:
             try:
                 import redis
+
                 self._client = redis.Redis(
                     host=self.host,
                     port=self.port,

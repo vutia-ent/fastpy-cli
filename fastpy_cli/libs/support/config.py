@@ -74,7 +74,7 @@ class Config:
         for key, value in os.environ.items():
             if key.startswith(prefix):
                 # Remove prefix and convert to dot notation
-                config_key = key[len(prefix):].lower().replace("__", ".").replace("_", ".")
+                config_key = key[len(prefix) :].lower().replace("__", ".").replace("_", ".")
                 self.set(config_key, self._parse_env_value(value))
 
         return self

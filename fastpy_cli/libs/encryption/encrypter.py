@@ -124,6 +124,7 @@ class FernetEncrypter(Encrypter):
     def generate_key(cipher: str = "fernet") -> str:
         """Generate a Fernet-compatible key."""
         from cryptography.fernet import Fernet
+
         return Fernet.generate_key().decode("utf-8")
 
 
@@ -180,11 +181,7 @@ class AESEncrypter(Encrypter):
         padded_data = padder.update(value) + padder.finalize()
 
         # Encrypt
-        cipher = Cipher(
-            algorithms.AES(self._key),
-            modes.CBC(iv),
-            backend=default_backend()
-        )
+        cipher = Cipher(algorithms.AES(self._key), modes.CBC(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         encrypted = encryptor.update(padded_data) + encryptor.finalize()
 
@@ -215,11 +212,7 @@ class AESEncrypter(Encrypter):
                 raise ValueError("MAC verification failed")
 
             # Decrypt
-            cipher = Cipher(
-                algorithms.AES(self._key),
-                modes.CBC(iv),
-                backend=default_backend()
-            )
+            cipher = Cipher(algorithms.AES(self._key), modes.CBC(iv), backend=default_backend())
             decryptor = cipher.decryptor()
             decrypted = decryptor.update(encrypted) + decryptor.finalize()
 

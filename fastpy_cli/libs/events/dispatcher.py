@@ -74,6 +74,7 @@ class EventDispatcher:
     def _matches_wildcard(cls, event: str, pattern: str) -> bool:
         """Check if an event matches a wildcard pattern."""
         import fnmatch
+
         return fnmatch.fnmatch(event, pattern)
 
     @classmethod
@@ -145,11 +146,13 @@ class EventDispatcher:
         """
         from fastpy_cli.libs.queue import Queue
 
-        return Queue.push({
-            "type": "event",
-            "event": event,
-            "payload": payload or {},
-        })
+        return Queue.push(
+            {
+                "type": "event",
+                "event": event,
+                "payload": payload or {},
+            }
+        )
 
     @classmethod
     def subscribe(cls, subscriber: Union[type, object]) -> None:
@@ -173,7 +176,8 @@ class EventDispatcher:
 
             # Remove matching wildcards
             cls._wildcards = [
-                (pattern, listener) for pattern, listener in cls._wildcards
+                (pattern, listener)
+                for pattern, listener in cls._wildcards
                 if not cls._matches_wildcard(event, pattern)
             ]
 

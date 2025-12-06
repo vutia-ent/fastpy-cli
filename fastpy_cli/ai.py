@@ -207,14 +207,10 @@ class AIProvider(ABC):
                 status = e.response.status_code
                 # Don't retry on client errors (4xx) except rate limits
                 if status == 429:  # Rate limit
-                    retry_after = int(
-                        e.response.headers.get("retry-after", str(int(delay)))
-                    )
+                    retry_after = int(e.response.headers.get("retry-after", str(int(delay))))
                     log_info(f"Rate limited, waiting {retry_after}s")
                     if attempt < max_retries - 1:
-                        console.print(
-                            f"[yellow]Rate limited, waiting {retry_after}s...[/yellow]"
-                        )
+                        console.print(f"[yellow]Rate limited, waiting {retry_after}s...[/yellow]")
                         time.sleep(retry_after)
                     else:
                         # Final attempt failed with rate limit
@@ -232,9 +228,7 @@ class AIProvider(ABC):
                 else:  # Server errors (5xx)
                     log_error(f"Server error {status} (attempt {attempt + 1})")
                     if attempt < max_retries - 1:
-                        console.print(
-                            f"[yellow]Server error, retrying in {delay:.0f}s...[/yellow]"
-                        )
+                        console.print(f"[yellow]Server error, retrying in {delay:.0f}s...[/yellow]")
                         time.sleep(delay)
                         delay *= 2
                     else:
@@ -408,11 +402,7 @@ class GoogleProvider(AIProvider):
                 params={"key": self.api_key},
                 json={
                     "contents": [
-                        {
-                            "parts": [
-                                {"text": f"{SYSTEM_PROMPT}\n\nUser request: {prompt}"}
-                            ]
-                        }
+                        {"parts": [{"text": f"{SYSTEM_PROMPT}\n\nUser request: {prompt}"}]}
                     ],
                     "generationConfig": {
                         "temperature": 0.7,

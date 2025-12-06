@@ -146,11 +146,14 @@ class NotificationManager:
 
         notification.delay = delay
 
-        return Queue.later(delay, {
-            "type": "send_notification",
-            "notification": notification,
-            "notifiables": notifiables,
-        })
+        return Queue.later(
+            delay,
+            {
+                "type": "send_notification",
+                "notification": notification,
+                "notifiables": notifiables,
+            },
+        )
 
     @classmethod
     def route(cls, channel: str, route: Any) -> AnonymousNotifiable:

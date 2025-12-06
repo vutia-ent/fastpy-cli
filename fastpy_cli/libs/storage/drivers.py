@@ -174,31 +174,19 @@ class LocalDriver(StorageDriver):
         dir_path = self._path(directory)
         if not dir_path.exists():
             return []
-        return [
-            str(f.relative_to(self.root))
-            for f in dir_path.iterdir()
-            if f.is_file()
-        ]
+        return [str(f.relative_to(self.root)) for f in dir_path.iterdir() if f.is_file()]
 
     def all_files(self, directory: str = "") -> list[str]:
         dir_path = self._path(directory)
         if not dir_path.exists():
             return []
-        return [
-            str(f.relative_to(self.root))
-            for f in dir_path.rglob("*")
-            if f.is_file()
-        ]
+        return [str(f.relative_to(self.root)) for f in dir_path.rglob("*") if f.is_file()]
 
     def directories(self, directory: str = "") -> list[str]:
         dir_path = self._path(directory)
         if not dir_path.exists():
             return []
-        return [
-            str(d.relative_to(self.root))
-            for d in dir_path.iterdir()
-            if d.is_dir()
-        ]
+        return [str(d.relative_to(self.root)) for d in dir_path.iterdir() if d.is_dir()]
 
     def make_directory(self, path: str) -> bool:
         self._path(path).mkdir(parents=True, exist_ok=True)
@@ -237,6 +225,7 @@ class S3Driver(StorageDriver):
         if self._client is None:
             try:
                 import boto3
+
                 self._client = boto3.client(
                     "s3",
                     region_name=self.region,
@@ -348,10 +337,7 @@ class S3Driver(StorageDriver):
             Delimiter="/",
         )
 
-        return [
-            p["Prefix"].rstrip("/")
-            for p in response.get("CommonPrefixes", [])
-        ]
+        return [p["Prefix"].rstrip("/") for p in response.get("CommonPrefixes", [])]
 
     def make_directory(self, path: str) -> bool:
         # S3 doesn't have real directories, create an empty object
@@ -420,10 +406,7 @@ class MemoryDriver(StorageDriver):
     def files(self, directory: str = "") -> list[str]:
         directory = directory.strip("/")
         prefix = f"{directory}/" if directory else ""
-        return [
-            f for f in self._files
-            if f.startswith(prefix) and "/" not in f[len(prefix):]
-        ]
+        return [f for f in self._files if f.startswith(prefix) and "/" not in f[len(prefix) :]]
 
     def all_files(self, directory: str = "") -> list[str]:
         directory = directory.strip("/")
@@ -436,7 +419,7 @@ class MemoryDriver(StorageDriver):
         dirs = set()
         for path in self._files:
             if path.startswith(prefix):
-                remaining = path[len(prefix):]
+                remaining = path[len(prefix) :]
                 if "/" in remaining:
                     dir_name = remaining.split("/")[0]
                     dirs.add(f"{prefix}{dir_name}" if prefix else dir_name)

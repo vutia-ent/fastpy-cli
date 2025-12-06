@@ -193,7 +193,7 @@ def init_config_file() -> Path:
         return CONFIG_FILE
 
     # Create default config file
-    default_content = '''# Fastpy CLI Configuration
+    default_content = """# Fastpy CLI Configuration
 # Documentation: https://fastpy.ve.ke/cli/config
 
 [ai]
@@ -216,7 +216,7 @@ enabled = false
 [logging]
 level = "INFO"
 # file = "/path/to/fastpy.log"
-'''
+"""
 
     with open(CONFIG_FILE, "w") as f:
         f.write(default_content)

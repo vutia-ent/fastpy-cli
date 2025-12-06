@@ -69,9 +69,7 @@ class Hash:
         return cls._manager().check(value, hashed_value)
 
     @classmethod
-    def needs_rehash(
-        cls, hashed_value: str, options: Optional[dict] = None
-    ) -> bool:
+    def needs_rehash(cls, hashed_value: str, options: Optional[dict] = None) -> bool:
         """
         Check if a hash needs to be rehashed.
 

@@ -121,11 +121,13 @@ class PendingMail:
         path = Path(path)
         content = path.read_bytes()
 
-        self._attachments.append({
-            "content": content,
-            "filename": filename or path.name,
-            "mime_type": mime_type,
-        })
+        self._attachments.append(
+            {
+                "content": content,
+                "filename": filename or path.name,
+                "mime_type": mime_type,
+            }
+        )
         return self
 
     def attach_data(
@@ -135,11 +137,13 @@ class PendingMail:
         mime_type: Optional[str] = None,
     ) -> "PendingMail":
         """Attach data as a file."""
-        self._attachments.append({
-            "content": data,
-            "filename": filename,
-            "mime_type": mime_type,
-        })
+        self._attachments.append(
+            {
+                "content": data,
+                "filename": filename,
+                "mime_type": mime_type,
+            }
+        )
         return self
 
     def with_header(self, name: str, value: str) -> "PendingMail":
@@ -200,21 +204,23 @@ class PendingMail:
         # This would integrate with the Queue system
         from fastpy_cli.libs.queue import Queue
 
-        return Queue.push({
-            "type": "send_mail",
-            "mail": {
-                "to": self._to,
-                "cc": self._cc,
-                "bcc": self._bcc,
-                "from_address": self._from_address,
-                "from_name": self._from_name,
-                "subject": self._subject,
-                "template": template,
-                "data": data,
-                "html": self._html,
-                "text": self._text,
-            },
-        })
+        return Queue.push(
+            {
+                "type": "send_mail",
+                "mail": {
+                    "to": self._to,
+                    "cc": self._cc,
+                    "bcc": self._bcc,
+                    "from_address": self._from_address,
+                    "from_name": self._from_name,
+                    "subject": self._subject,
+                    "template": template,
+                    "data": data,
+                    "html": self._html,
+                    "text": self._text,
+                },
+            }
+        )
 
     def later(
         self,
@@ -225,21 +231,24 @@ class PendingMail:
         """Queue the email to be sent after a delay."""
         from fastpy_cli.libs.queue import Queue
 
-        return Queue.later(delay_seconds, {
-            "type": "send_mail",
-            "mail": {
-                "to": self._to,
-                "cc": self._cc,
-                "bcc": self._bcc,
-                "from_address": self._from_address,
-                "from_name": self._from_name,
-                "subject": self._subject,
-                "template": template,
-                "data": data,
-                "html": self._html,
-                "text": self._text,
+        return Queue.later(
+            delay_seconds,
+            {
+                "type": "send_mail",
+                "mail": {
+                    "to": self._to,
+                    "cc": self._cc,
+                    "bcc": self._bcc,
+                    "from_address": self._from_address,
+                    "from_name": self._from_name,
+                    "subject": self._subject,
+                    "template": template,
+                    "data": data,
+                    "html": self._html,
+                    "text": self._text,
+                },
             },
-        })
+        )
 
 
 class Mailer:

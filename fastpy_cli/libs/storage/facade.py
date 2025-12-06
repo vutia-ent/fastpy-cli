@@ -166,6 +166,7 @@ class StorageFake:
 
     def __init__(self):
         from fastpy_cli.libs.storage.drivers import MemoryDriver
+
         self._driver = MemoryDriver()
 
     def put(self, path: str, contents: Union[str, bytes]) -> bool:

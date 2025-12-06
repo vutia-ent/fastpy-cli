@@ -6,6 +6,7 @@ admin user creation, and pre-commit hooks installation.
 
 These are standalone commands that work within a Fastpy project.
 """
+
 import os
 import secrets
 import subprocess
@@ -26,6 +27,7 @@ console = Console()
 @dataclass
 class DatabaseConfig:
     """Database configuration."""
+
     driver: str
     host: str
     port: int
@@ -59,22 +61,18 @@ def check_command_exists(cmd: str) -> bool:
         subprocess.run(
             ["which", cmd] if sys.platform != "win32" else ["where", cmd],
             capture_output=True,
-            check=True
+            check=True,
         )
         return True
     except subprocess.CalledProcessError:
         return False
 
 
-def run_command(cmd: list, capture: bool = True, check: bool = True, **kwargs) -> subprocess.CompletedProcess:
+def run_command(
+    cmd: list, capture: bool = True, check: bool = True, **kwargs
+) -> subprocess.CompletedProcess:
     """Run a shell command."""
-    return subprocess.run(
-        cmd,
-        capture_output=capture,
-        text=True,
-        check=check,
-        **kwargs
-    )
+    return subprocess.run(cmd, capture_output=capture, text=True, check=check, **kwargs)
 
 
 def get_env_path() -> Path:
@@ -200,7 +198,16 @@ def create_database(config: DatabaseConfig) -> bool:
     console.print(f"[blue]Creating database '{config.database}'...[/blue]")
 
     if config.driver == "postgresql":
-        cmd = ["createdb", "-h", config.host, "-p", str(config.port), "-U", config.username, config.database]
+        cmd = [
+            "createdb",
+            "-h",
+            config.host,
+            "-p",
+            str(config.port),
+            "-U",
+            config.username,
+            config.database,
+        ]
         env = os.environ.copy()
         if config.password:
             env["PGPASSWORD"] = config.password
@@ -209,7 +216,9 @@ def create_database(config: DatabaseConfig) -> bool:
             console.print(f"[green]✓[/green] Database '{config.database}' created successfully")
             return True
         except subprocess.CalledProcessError:
-            console.print("[yellow]⚠[/yellow] Could not create database. You may need to create it manually.")
+            console.print(
+                "[yellow]⚠[/yellow] Could not create database. You may need to create it manually."
+            )
             return False
 
     elif config.driver == "mysql":
@@ -222,7 +231,9 @@ def create_database(config: DatabaseConfig) -> bool:
             console.print(f"[green]✓[/green] Database '{config.database}' created successfully")
             return True
         except subprocess.CalledProcessError:
-            console.print("[yellow]⚠[/yellow] Could not create database. You may need to create it manually.")
+            console.print(
+                "[yellow]⚠[/yellow] Could not create database. You may need to create it manually."
+            )
             return False
 
     return False
@@ -232,14 +243,12 @@ def create_database(config: DatabaseConfig) -> bool:
 # Setup Functions
 # ============================================
 
+
 def setup_env() -> bool:
     """
     Initialize .env file from .env.example.
     """
-    console.print(Panel.fit(
-        "[bold cyan]Environment Setup[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Environment Setup[/bold cyan]", border_style="cyan"))
 
     env_path = get_env_path()
     example_path = Path.cwd() / ".env.example"
@@ -248,6 +257,7 @@ def setup_env() -> bool:
         console.print("[yellow]⚠[/yellow] .env file already exists")
         if Confirm.ask("Backup and recreate?", default=False):
             import time
+
             backup_path = env_path.with_suffix(f".backup.{int(time.time())}")
             env_path.rename(backup_path)
             console.print(f"[dim]Backed up to: {backup_path}[/dim]")
@@ -277,10 +287,7 @@ def setup_db(
     """
     Configure database connection.
     """
-    console.print(Panel.fit(
-        "[bold cyan]Database Configuration[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Database Configuration[/bold cyan]", border_style="cyan"))
 
     # Database driver selection
     if not driver and interactive:
@@ -298,14 +305,11 @@ def setup_db(
 
     # SQLite configuration
     if driver == "sqlite":
-        database = database or (Prompt.ask("Database file name", default="fastpy") if interactive else "fastpy")
+        database = database or (
+            Prompt.ask("Database file name", default="fastpy") if interactive else "fastpy"
+        )
         config = DatabaseConfig(
-            driver=driver,
-            host="",
-            port=0,
-            username="",
-            password="",
-            database=database
+            driver=driver, host="", port=0, username="", password="", database=database
         )
         update_env("DB_DRIVER", driver)
         update_env("DATABASE_URL", config.url)
@@ -327,7 +331,9 @@ def setup_db(
     else:
         console.print(f"[yellow]⚠[/yellow] {message}")
         if driver == "mysql":
-            console.print("  [dim]Start with: mysql.server start or brew services start mysql[/dim]")
+            console.print(
+                "  [dim]Start with: mysql.server start or brew services start mysql[/dim]"
+            )
         else:
             console.print("  [dim]Start with: brew services start postgresql[/dim]")
 
@@ -347,12 +353,7 @@ def setup_db(
         database = database or "fastpy_db"
 
     config = DatabaseConfig(
-        driver=driver,
-        host=host,
-        port=port,
-        username=username,
-        password=password,
-        database=database
+        driver=driver, host=host, port=port, username=username, password=password, database=database
     )
 
     # Update .env
@@ -365,7 +366,9 @@ def setup_db(
         console.print(f"[green]✓[/green] Database '{config.database}' exists")
     elif create:
         if interactive:
-            if Confirm.ask(f"Database '{config.database}' does not exist. Create it?", default=True):
+            if Confirm.ask(
+                f"Database '{config.database}' does not exist. Create it?", default=True
+            ):
                 create_database(config)
         else:
             create_database(config)
@@ -377,10 +380,7 @@ def setup_secret(length: int = 64) -> str:
     """
     Generate a secure secret key for JWT tokens.
     """
-    console.print(Panel.fit(
-        "[bold cyan]Secret Key Generation[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Secret Key Generation[/bold cyan]", border_style="cyan"))
 
     secret_key = secrets.token_hex(length // 2)
     update_env("SECRET_KEY", secret_key)
@@ -395,17 +395,16 @@ def setup_hooks() -> bool:
     """
     Install pre-commit hooks for code quality.
     """
-    console.print(Panel.fit(
-        "[bold cyan]Pre-commit Hooks Setup[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Pre-commit Hooks Setup[/bold cyan]", border_style="cyan"))
 
     if not Path(".git").exists():
         console.print("[yellow]⚠[/yellow] Not a git repository. Initialize with: git init")
         return False
 
     if not check_command_exists("pre-commit"):
-        console.print("[yellow]⚠[/yellow] pre-commit not found. Install with: pip install pre-commit")
+        console.print(
+            "[yellow]⚠[/yellow] pre-commit not found. Install with: pip install pre-commit"
+        )
         return False
 
     if not Path(".pre-commit-config.yaml").exists():
@@ -413,9 +412,7 @@ def setup_hooks() -> bool:
         return False
 
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
+        SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
     ) as progress:
         task = progress.add_task("Installing pre-commit hooks...", total=None)
         try:
@@ -433,10 +430,7 @@ def run_migrations(auto_generate: bool = True) -> bool:
     """
     Run database migrations.
     """
-    console.print(Panel.fit(
-        "[bold cyan]Database Migrations[/bold cyan]",
-        border_style="cyan"
-    ))
+    console.print(Panel.fit("[bold cyan]Database Migrations[/bold cyan]", border_style="cyan"))
 
     versions_dir = Path("alembic/versions")
     has_migrations = versions_dir.exists() and any(versions_dir.glob("*.py"))
@@ -478,11 +472,13 @@ def full_setup(
         console.print("[dim]Run this command from a Fastpy project directory.[/dim]")
         raise typer.Exit(1)
 
-    console.print(Panel.fit(
-        "[bold green]🚀 Fastpy Project Setup[/bold green]\n"
-        "[dim]Interactive setup wizard[/dim]",
-        border_style="green"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold green]🚀 Fastpy Project Setup[/bold green]\n"
+            "[dim]Interactive setup wizard[/dim]",
+            border_style="green",
+        )
+    )
 
     # Step 1: Environment setup
     console.print("\n[bold]Step 1: Environment Setup[/bold]")
@@ -517,14 +513,16 @@ def full_setup(
             setup_hooks()
 
     # Complete!
-    console.print(Panel.fit(
-        "[bold green]✓ Setup Complete![/bold green]\n\n"
-        "[cyan]Next steps:[/cyan]\n"
-        "  1. Start server: [yellow]fastpy serve[/yellow]\n"
-        "  2. Visit docs:   [blue]http://localhost:8000/docs[/blue]\n"
-        "  3. Generate code: [yellow]fastpy make:resource Post -m[/yellow]",
-        border_style="green"
-    ))
+    console.print(
+        Panel.fit(
+            "[bold green]✓ Setup Complete![/bold green]\n\n"
+            "[cyan]Next steps:[/cyan]\n"
+            "  1. Start server: [yellow]fastpy serve[/yellow]\n"
+            "  2. Visit docs:   [blue]http://localhost:8000/docs[/blue]\n"
+            "  3. Generate code: [yellow]fastpy make:resource Post -m[/yellow]",
+            border_style="green",
+        )
+    )
 
 
 # Export for use in main CLI

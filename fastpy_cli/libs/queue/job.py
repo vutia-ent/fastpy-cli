@@ -110,9 +110,7 @@ class Job(ABC):
             job = pickle.loads(data)
             # Validate that the result is actually a Job instance
             if not isinstance(job, Job):
-                raise ValueError(
-                    f"Deserialized object is not a Job: {type(job).__name__}"
-                )
+                raise ValueError(f"Deserialized object is not a Job: {type(job).__name__}")
             return job
         except Exception as e:
             raise ValueError(f"Failed to deserialize job: {e}") from e
@@ -171,6 +169,7 @@ class SerializableJob(Job):
 
         # Import the job class
         import importlib
+
         try:
             module = importlib.import_module(module_path)
             job_class = getattr(module, class_name)
@@ -179,9 +178,7 @@ class SerializableJob(Job):
 
         # SECURITY: Verify the class is a SerializableJob subclass
         if not issubclass(job_class, SerializableJob):
-            raise ValueError(
-                f"Class '{class_path}' is not a SerializableJob subclass"
-            )
+            raise ValueError(f"Class '{class_path}' is not a SerializableJob subclass")
 
         # Create instance
         job = job_class.__new__(job_class)

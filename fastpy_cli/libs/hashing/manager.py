@@ -77,9 +77,7 @@ class HashManager:
         driver = self._detect_driver(hashed_value)
         return self.driver(driver).check(value, hashed_value)
 
-    def needs_rehash(
-        self, hashed_value: str, options: Optional[dict] = None
-    ) -> bool:
+    def needs_rehash(self, hashed_value: str, options: Optional[dict] = None) -> bool:
         """Check if hash needs rehashing."""
         driver = self._detect_driver(hashed_value)
 

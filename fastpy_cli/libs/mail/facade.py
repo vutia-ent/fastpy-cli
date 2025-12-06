@@ -315,5 +315,7 @@ class FakePendingMail:
         self._fake.record_queued(self._data)
         return True
 
-    def later(self, delay: int, template: Optional[str] = None, data: Optional[dict[str, Any]] = None) -> bool:
+    def later(
+        self, delay: int, template: Optional[str] = None, data: Optional[dict[str, Any]] = None
+    ) -> bool:
         return self.queue(template, data)

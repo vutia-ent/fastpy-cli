@@ -186,9 +186,7 @@ class EventFake:
         matching = [e for e, _ in self._dispatched if e == event]
 
         if count is not None and len(matching) != count:
-            raise AssertionError(
-                f"Expected {count} '{event}' events, got {len(matching)}"
-            )
+            raise AssertionError(f"Expected {count} '{event}' events, got {len(matching)}")
 
         if not matching:
             raise AssertionError(f"Event '{event}' was not dispatched")
@@ -200,9 +198,7 @@ class EventFake:
         matching = [e for e, _ in self._dispatched if e == event]
 
         if matching:
-            raise AssertionError(
-                f"Event '{event}' was dispatched {len(matching)} time(s)"
-            )
+            raise AssertionError(f"Event '{event}' was dispatched {len(matching)} time(s)")
 
         return True
 
@@ -212,9 +208,7 @@ class EventFake:
             if e == event and all(payload.get(k) == v for k, v in kwargs.items()):
                 return True
 
-        raise AssertionError(
-            f"Event '{event}' was not dispatched with {kwargs}"
-        )
+        raise AssertionError(f"Event '{event}' was not dispatched with {kwargs}")
 
     @property
     def dispatched(self) -> list[tuple]:

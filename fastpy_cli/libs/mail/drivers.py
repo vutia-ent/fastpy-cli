@@ -227,7 +227,11 @@ class MailgunDriver(MailDriver):
         import httpx
 
         data = {
-            "from": f"{message.from_name} <{message.from_address}>" if message.from_name else message.from_address,
+            "from": (
+                f"{message.from_name} <{message.from_address}>"
+                if message.from_name
+                else message.from_address
+            ),
             "to": message.to,
             "subject": message.subject,
         }
@@ -296,7 +300,11 @@ class SESDriver(MailDriver):
                 body["Html"] = {"Data": message.html, "Charset": "UTF-8"}
 
             response = client.send_email(
-                Source=f"{message.from_name} <{message.from_address}>" if message.from_name else message.from_address,
+                Source=(
+                    f"{message.from_name} <{message.from_address}>"
+                    if message.from_name
+                    else message.from_address
+                ),
                 Destination={
                     "ToAddresses": message.to,
                     "CcAddresses": message.cc or [],
@@ -339,8 +347,16 @@ class LogDriver(MailDriver):
             "bcc": message.bcc,
             "from": f"{message.from_name} <{message.from_address}>",
             "subject": message.subject,
-            "text": message.text[:200] + "..." if message.text and len(message.text) > 200 else message.text,
-            "html": message.html[:200] + "..." if message.html and len(message.html) > 200 else message.html,
+            "text": (
+                message.text[:200] + "..."
+                if message.text and len(message.text) > 200
+                else message.text
+            ),
+            "html": (
+                message.html[:200] + "..."
+                if message.html and len(message.html) > 200
+                else message.html
+            ),
             "attachments": len(message.attachments) if message.attachments else 0,
         }
 

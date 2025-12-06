@@ -51,6 +51,7 @@ def is_safe_url(url: str, allow_private: bool = False) -> tuple[bool, str]:
         # Try to resolve and check IP
         try:
             import socket
+
             # Get all IPs for the hostname
             for info in socket.getaddrinfo(hostname, None):
                 ip = info[4][0]

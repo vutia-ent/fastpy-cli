@@ -39,9 +39,7 @@ class Facade:
 
         Override this in subclasses.
         """
-        raise NotImplementedError(
-            f"{cls.__name__} does not implement get_facade_accessor method."
-        )
+        raise NotImplementedError(f"{cls.__name__} does not implement get_facade_accessor method.")
 
     @classmethod
     def get_facade_root(cls) -> Any:
