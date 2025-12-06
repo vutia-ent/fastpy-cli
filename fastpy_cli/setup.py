@@ -447,6 +447,24 @@ def get_venv_command(cmd: str) -> list:
     return []
 
 
+def show_venv_hint(command: str = "", extra_hint: str = "") -> None:
+    """Show helpful hint about activating venv."""
+    console.print()
+    console.print("[yellow]The virtual environment is not activated.[/yellow]")
+    console.print()
+    console.print("[bold]To activate:[/bold]")
+    if sys.platform == "win32":
+        console.print("  [cyan]venv\\Scripts\\activate[/cyan]")
+    else:
+        console.print("  [cyan]source venv/bin/activate[/cyan]")
+    if command:
+        console.print()
+        console.print(f"Then run: [cyan]{command}[/cyan]")
+    if extra_hint:
+        console.print()
+        console.print(f"[dim]{extra_hint}[/dim]")
+
+
 def run_migrations(auto_generate: bool = True) -> bool:
     """
     Run database migrations.
@@ -458,15 +476,7 @@ def run_migrations(auto_generate: bool = True) -> bool:
 
     if not alembic_cmd:
         console.print("[red]✗[/red] Alembic not found")
-        console.print()
-        console.print("[yellow]Make sure you have activated the virtual environment:[/yellow]")
-        if sys.platform == "win32":
-            console.print("  [cyan]venv\\Scripts\\activate[/cyan]")
-        else:
-            console.print("  [cyan]source venv/bin/activate[/cyan]")
-        console.print()
-        console.print("[dim]Or run migrations manually after activation:[/dim]")
-        console.print("  [cyan]alembic upgrade head[/cyan]")
+        show_venv_hint("alembic upgrade head", "Or run: fastpy db:migrate after activation")
         return False
 
     versions_dir = Path("alembic/versions")
@@ -481,8 +491,8 @@ def run_migrations(auto_generate: bool = True) -> bool:
             console.print(f"[red]✗[/red] Failed to generate migration: {e}")
             return False
         except FileNotFoundError:
-            console.print("[red]✗[/red] Alembic not found in virtual environment")
-            console.print("[dim]Activate the venv and try again[/dim]")
+            console.print("[red]✗[/red] Alembic not found")
+            show_venv_hint("alembic revision --autogenerate -m 'migration'")
             return False
 
     console.print("[blue]Running migrations...[/blue]")
@@ -499,7 +509,7 @@ def run_migrations(auto_generate: bool = True) -> bool:
         return False
     except FileNotFoundError:
         console.print("[red]✗[/red] Alembic not found")
-        console.print("[dim]Activate the venv and try again[/dim]")
+        show_venv_hint("alembic upgrade head")
         return False
 
 

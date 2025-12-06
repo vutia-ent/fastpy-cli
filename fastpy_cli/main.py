@@ -163,22 +163,88 @@ def is_fastpy_project() -> bool:
     return cli_py.exists()
 
 
+def get_venv_paths() -> tuple[Optional[Path], Optional[Path]]:
+    """Get venv python and bin paths if they exist."""
+    project_path = Path.cwd()
+    if sys.platform == "win32":
+        venv_python = project_path / "venv" / "Scripts" / "python.exe"
+        venv_bin = project_path / "venv" / "Scripts"
+    else:
+        venv_python = project_path / "venv" / "bin" / "python"
+        venv_bin = project_path / "venv" / "bin"
+
+    if venv_python.exists():
+        return venv_python, venv_bin
+    return None, None
+
+
+def is_venv_active() -> bool:
+    """Check if we're running inside the project's venv."""
+    venv_path = Path.cwd() / "venv"
+    if not venv_path.exists():
+        return False
+    # Check if current python is from the venv
+    current_python = Path(sys.executable).resolve()
+    venv_python, _ = get_venv_paths()
+    if venv_python:
+        return current_python == venv_python.resolve()
+    return False
+
+
+def show_venv_hint(command: str = "") -> None:
+    """Show helpful hint about activating venv."""
+    console.print()
+    console.print("[yellow]The virtual environment is not activated.[/yellow]")
+    console.print()
+    console.print("[bold]To activate:[/bold]")
+    if sys.platform == "win32":
+        console.print("  [cyan]venv\\Scripts\\activate[/cyan]")
+    else:
+        console.print("  [cyan]source venv/bin/activate[/cyan]")
+    if command:
+        console.print()
+        console.print(f"Then run: [cyan]fastpy {command}[/cyan]")
+
+
 def proxy_to_project_cli(args: list[str]) -> int:
     """Proxy command to project's cli.py."""
     cli_py = Path.cwd() / "cli.py"
 
-    # Check for virtual environment (cross-platform)
-    if sys.platform == "win32":
-        venv_python = Path.cwd() / "venv" / "Scripts" / "python.exe"
-    else:
-        venv_python = Path.cwd() / "venv" / "bin" / "python"
+    # Get venv paths
+    venv_python, venv_bin = get_venv_paths()
 
-    python_cmd = str(venv_python) if venv_python.exists() else sys.executable
+    if venv_python:
+        python_cmd = str(venv_python)
+        # Set PATH to include venv bin directory so subprocesses find uvicorn, etc.
+        env = os.environ.copy()
+        env["PATH"] = f"{venv_bin}{os.pathsep}{env.get('PATH', '')}"
+        # Also set VIRTUAL_ENV for tools that check it
+        env["VIRTUAL_ENV"] = str(Path.cwd() / "venv")
+    else:
+        python_cmd = sys.executable
+        env = None
 
     cmd = [python_cmd, str(cli_py)] + args
     log_debug(f"Proxying to project CLI: {cmd}")
-    result = subprocess.run(cmd)
-    return result.returncode
+
+    try:
+        result = subprocess.run(cmd, env=env)
+
+        # Check for common "not found" errors and show helpful hint
+        if result.returncode != 0:
+            # If venv exists but not activated, show hint
+            if venv_python and not is_venv_active():
+                command = args[0] if args else ""
+                show_venv_hint(command)
+
+        return result.returncode
+
+    except FileNotFoundError as e:
+        # Handle case where python itself isn't found
+        console.print(f"[red]Error:[/red] {e}")
+        if venv_python:
+            show_venv_hint(args[0] if args else "")
+        return 1
 
 
 def run_command(
