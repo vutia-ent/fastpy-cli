@@ -506,7 +506,7 @@ def full_setup(
                 if not skip_admin:
                     console.print("\n[bold]Step 5: Admin User[/bold]")
                     if Confirm.ask("Create super admin user?", default=True):
-                        console.print("[yellow]Run:[/yellow] python cli.py make:admin")
+                        console.print("[yellow]Run:[/yellow] fastpy make:admin")
 
     # Step 6: Pre-commit hooks
     if not skip_hooks:

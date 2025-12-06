@@ -16,11 +16,19 @@ T = TypeVar("T")
 
 # Allowlist of safe command prefixes for AI-generated commands
 SAFE_COMMAND_PREFIXES = [
-    "python cli.py make:",
-    "python cli.py db:",
-    "python cli.py route:",
-    "python cli.py serve",
-    "python cli.py test",
+    "fastpy make:",
+    "fastpy db:",
+    "fastpy route:",
+    "fastpy serve",
+    "fastpy test",
+    "fastpy ai:",
+    "fastpy setup:",
+    "fastpy deploy:",
+    "fastpy domain:",
+    "fastpy env:",
+    "fastpy service:",
+    "fastpy list",
+    "fastpy update",
     "fastpy ",
 ]
 
