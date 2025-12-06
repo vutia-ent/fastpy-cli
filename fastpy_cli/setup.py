@@ -426,11 +426,48 @@ def setup_hooks() -> bool:
             return False
 
 
+def get_venv_command(cmd: str) -> list:
+    """Get command path, preferring venv if available."""
+    project_path = Path.cwd()
+
+    # Check for venv
+    if sys.platform == "win32":
+        venv_cmd = project_path / "venv" / "Scripts" / f"{cmd}.exe"
+    else:
+        venv_cmd = project_path / "venv" / "bin" / cmd
+
+    if venv_cmd.exists():
+        return [str(venv_cmd)]
+
+    # Check if command exists in PATH
+    if check_command_exists(cmd):
+        return [cmd]
+
+    # Not found
+    return []
+
+
 def run_migrations(auto_generate: bool = True) -> bool:
     """
     Run database migrations.
     """
     console.print(Panel.fit("[bold cyan]Database Migrations[/bold cyan]", border_style="cyan"))
+
+    # Get alembic command (prefer venv)
+    alembic_cmd = get_venv_command("alembic")
+
+    if not alembic_cmd:
+        console.print("[red]✗[/red] Alembic not found")
+        console.print()
+        console.print("[yellow]Make sure you have activated the virtual environment:[/yellow]")
+        if sys.platform == "win32":
+            console.print("  [cyan]venv\\Scripts\\activate[/cyan]")
+        else:
+            console.print("  [cyan]source venv/bin/activate[/cyan]")
+        console.print()
+        console.print("[dim]Or run migrations manually after activation:[/dim]")
+        console.print("  [cyan]alembic upgrade head[/cyan]")
+        return False
 
     versions_dir = Path("alembic/versions")
     has_migrations = versions_dir.exists() and any(versions_dir.glob("*.py"))
@@ -438,15 +475,19 @@ def run_migrations(auto_generate: bool = True) -> bool:
     if not has_migrations and auto_generate:
         console.print("[blue]Generating initial migration...[/blue]")
         try:
-            run_command(["alembic", "revision", "--autogenerate", "-m", "Initial migration"])
+            run_command(alembic_cmd + ["revision", "--autogenerate", "-m", "Initial migration"])
             console.print("[green]✓[/green] Initial migration generated")
         except subprocess.CalledProcessError as e:
             console.print(f"[red]✗[/red] Failed to generate migration: {e}")
             return False
+        except FileNotFoundError:
+            console.print("[red]✗[/red] Alembic not found in virtual environment")
+            console.print("[dim]Activate the venv and try again[/dim]")
+            return False
 
     console.print("[blue]Running migrations...[/blue]")
     try:
-        run_command(["alembic", "upgrade", "head"])
+        run_command(alembic_cmd + ["upgrade", "head"])
         console.print("[green]✓[/green] Migrations completed")
         return True
     except subprocess.CalledProcessError as e:
@@ -455,6 +496,10 @@ def run_migrations(auto_generate: bool = True) -> bool:
         console.print("  1. Database server is running")
         console.print("  2. Database credentials in .env are correct")
         console.print("  3. Database exists")
+        return False
+    except FileNotFoundError:
+        console.print("[red]✗[/red] Alembic not found")
+        console.print("[dim]Activate the venv and try again[/dim]")
         return False
 
 
