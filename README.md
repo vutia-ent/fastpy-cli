@@ -130,15 +130,30 @@ pipx install fastpy-cli
 
 ## Quick Start
 
+### One-Command Setup (Recommended)
+
+```bash
+# Create project with automatic setup
+fastpy new my-api --install
+cd my-api
+source venv/bin/activate
+fastpy setup   # Configure database
+fastpy serve
+```
+
+### Step-by-Step Setup
+
 ```bash
 # 1. Create a new project
 fastpy new my-api
-
-# 2. Navigate to the project
 cd my-api
 
-# 3. Generate resources with AI
-fastpy ai "Create a blog with posts, categories, and tags"
+# 2. Install dependencies (creates venv + installs packages + runs setup)
+fastpy install
+
+# 3. Activate the virtual environment
+source venv/bin/activate  # macOS/Linux
+# or: venv\Scripts\activate  # Windows
 
 # 4. Start the development server
 fastpy serve
@@ -167,6 +182,8 @@ fastpy serve
 | Command | Description |
 |---------|-------------|
 | `fastpy new <name>` | Create a new Fastpy project |
+| `fastpy new <name> --install` | Create project + auto-setup venv and deps |
+| `fastpy install` | Install deps and setup (run inside project) |
 | `fastpy ai <prompt>` | Generate resources using AI |
 | `fastpy libs [name]` | Explore Laravel-style libs |
 | `fastpy doctor` | Diagnose environment issues |
@@ -175,6 +192,19 @@ fastpy serve
 | `fastpy version` | Show CLI version |
 | `fastpy docs` | Open documentation |
 | `fastpy upgrade` | Upgrade to latest version |
+
+### Setup Commands
+
+> Run these inside a Fastpy project directory
+
+| Command | Description |
+|---------|-------------|
+| `fastpy install` | Create venv, install deps, run setup wizard |
+| `fastpy setup` | Full interactive setup wizard |
+| `fastpy setup:env` | Initialize .env from .env.example |
+| `fastpy setup:db` | Configure database connection |
+| `fastpy setup:secret` | Generate secure JWT secret key |
+| `fastpy setup:hooks` | Install pre-commit hooks |
 
 ### Project Commands
 
