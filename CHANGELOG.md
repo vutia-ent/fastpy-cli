@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2025-12-06
+
+### Added
+
+- **Post-Generation Workflow**: Enhanced `fastpy ai` command with follow-up prompts
+  - Detects models created without routes (using `make:model` instead of `make:resource`)
+  - Prompts user to generate routes for models that don't have them
+  - Prompts user to run database migrations after resource generation
+  - Streamlines the complete resource creation workflow
+
+### Improved
+
+- **Developer Experience**: Complete resource setup in a single command flow
+  - No need to manually run `make:route` after AI generation
+  - No need to remember to run `db:migrate` separately
+
+---
+
 ## [1.1.0] - 2025-12-06
 
 ### 🎉 First Stable Release
@@ -364,7 +382,8 @@ data = Crypt.decrypt(encrypted)
 
 ---
 
-[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/vutia-ent/fastpy-cli/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.7...v1.1.0
 [0.6.7]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.5...v0.6.6
