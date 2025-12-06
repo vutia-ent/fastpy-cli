@@ -11,6 +11,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.5] - 2025-12-06
+
+### Added
+
+- **CLI API Key Configuration**: Set AI provider and API key directly from CLI
+  - `fastpy ai:config -p anthropic -k YOUR_KEY` - Set provider and key together
+  - `fastpy ai:config -k YOUR_KEY` - Set key for current provider
+  - `--env/-e` flag to specify custom `.env` file path
+  - Keys are saved to project's `.env` file for security
+  - Automatic environment variable detection per provider
+
+### Changed
+
+- Updated `ai:config` help text with new key management examples
+- Improved interactive setup display with key configuration commands
+
+---
+
+## [0.6.4] - 2025-12-06
+
+### Fixed
+
+- Added missing `toml` dependency for `ai:config` command
+  - Fixes `ModuleNotFoundError: No module named 'toml'` when configuring AI provider
+
+### Changed
+
+- Added `toml>=0.10.0` to package dependencies
+
+---
+
+## [0.6.3] - 2025-12-06
+
+### Added
+
+- **SQLite Database Support**: Full SQLite support in project templates
+  - Added `sqlite` to `db_driver` Literal type in settings
+  - Added async URL conversion for SQLite (`sqlite+aiosqlite://`)
+
+### Fixed
+
+- Database settings template now properly supports SQLite driver selection
+
+---
+
+## [0.6.2] - 2025-12-05
+
+### Fixed
+
+- **pip Installation Compatibility**: Fixed psycopg2-binary version constraint
+  - Changed from fixed version to flexible `>=2.9.9`
+  - Resolves installation failures on newer Python/pip versions
+
+---
+
+## [0.6.1] - 2025-12-04
+
+### Fixed
+
+- Minor bug fixes and stability improvements
+
+---
+
+## [0.6.0] - 2025-12-03
+
+### Added
+
+- **Setup Command**: New `fastpy setup` for project initialization
+  - Interactive database selection (PostgreSQL, MySQL, SQLite)
+  - Automatic `.env` file generation
+  - Secret key generation
+  - Virtual environment creation
+  - Dependencies installation
+  - Database migration execution
+
+- **Setup Sub-commands**:
+  - `fastpy setup:env` - Generate `.env` file only
+  - `fastpy setup:db` - Run database migrations only
+  - `fastpy setup:secret` - Generate new secret key
+
+### Changed
+
+- Improved `fastpy new` to optionally run setup after cloning
+- Enhanced project detection for better CLI proxying
+
+---
+
 ## [0.5.0] - 2024-12-02
 
 ### Added
@@ -206,7 +293,13 @@ data = Crypt.decrypt(encrypted)
 
 ---
 
-[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.4...v0.6.5
+[0.6.4]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.3...v0.6.4
+[0.6.3]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/vutia-ent/fastpy-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/vutia-ent/fastpy-cli/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vutia-ent/fastpy-cli/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/vutia-ent/fastpy-cli/compare/v0.3.0...v0.3.1
