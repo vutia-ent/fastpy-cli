@@ -16,7 +16,7 @@ class TestValidateCommand:
 
     def test_valid_command(self) -> None:
         """Test validation of valid command."""
-        is_valid, error = validate_command("python cli.py make:resource Test")
+        is_valid, error = validate_command("fastpy make:resource Test")
         assert is_valid is True
         assert error == ""
 
@@ -53,15 +53,23 @@ class TestIsSafeCommand:
 
     def test_safe_make_resource(self) -> None:
         """Test that make:resource is safe."""
-        assert is_safe_command("python cli.py make:resource Test -f name:string") is True
+        assert is_safe_command("fastpy make:resource Test -f name:string") is True
 
     def test_safe_db_migrate(self) -> None:
         """Test that db:migrate is safe."""
-        assert is_safe_command("python cli.py db:migrate") is True
+        assert is_safe_command("fastpy db:migrate") is True
 
-    def test_safe_fastpy_command(self) -> None:
-        """Test that fastpy commands are safe."""
+    def test_safe_fastpy_new(self) -> None:
+        """Test that fastpy new is safe."""
         assert is_safe_command("fastpy new test") is True
+
+    def test_safe_fastpy_ai(self) -> None:
+        """Test that fastpy ai commands are safe."""
+        assert is_safe_command("fastpy ai:init claude") is True
+
+    def test_safe_fastpy_setup(self) -> None:
+        """Test that fastpy setup commands are safe."""
+        assert is_safe_command("fastpy setup:db") is True
 
     def test_unsafe_arbitrary_command(self) -> None:
         """Test that arbitrary commands are not safe."""
@@ -77,17 +85,17 @@ class TestParseCommandSafely:
 
     def test_simple_command(self) -> None:
         """Test parsing simple command."""
-        result = parse_command_safely("python cli.py test")
-        assert result == ["python", "cli.py", "test"]
+        result = parse_command_safely("fastpy serve")
+        assert result == ["fastpy", "serve"]
 
     def test_command_with_quotes(self) -> None:
         """Test parsing command with quoted arguments."""
-        result = parse_command_safely('echo "hello world"')
-        assert result == ["echo", "hello world"]
+        result = parse_command_safely('fastpy ai "create a blog"')
+        assert result == ["fastpy", "ai", "create a blog"]
 
     def test_command_with_flags(self) -> None:
         """Test parsing command with flags."""
-        result = parse_command_safely("python cli.py make:resource Test -f name:string")
+        result = parse_command_safely("fastpy make:resource Test -f name:string")
         assert "-f" in result
         assert "name:string" in result
 

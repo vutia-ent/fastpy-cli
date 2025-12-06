@@ -22,17 +22,17 @@ class TestParseAIResponse:
     def test_parse_valid_json(self) -> None:
         """Test parsing valid JSON response."""
         response = json.dumps([
-            {"command": "python cli.py make:resource Test -f name:string", "description": "Test resource"},
+            {"command": "fastpy make:resource Test -f name:string", "description": "Test resource"},
         ])
         result = parse_ai_response(response)
         assert len(result) == 1
-        assert result[0]["command"] == "python cli.py make:resource Test -f name:string"
+        assert result[0]["command"] == "fastpy make:resource Test -f name:string"
 
     def test_parse_json_with_markdown(self) -> None:
         """Test parsing JSON wrapped in markdown code blocks."""
         response = """```json
 [
-    {"command": "python cli.py make:resource Test -f name:string", "description": "Test"}
+    {"command": "fastpy make:resource Test -f name:string", "description": "Test"}
 ]
 ```"""
         result = parse_ai_response(response)
@@ -47,7 +47,7 @@ class TestParseAIResponse:
     def test_parse_filters_invalid_commands(self) -> None:
         """Test that invalid commands are filtered out."""
         response = json.dumps([
-            {"command": "python cli.py make:resource Valid -f name:string", "description": "Valid"},
+            {"command": "fastpy make:resource Valid -f name:string", "description": "Valid"},
             {"command": "rm -rf /", "description": "Invalid command"},
         ])
         result = parse_ai_response(response)
