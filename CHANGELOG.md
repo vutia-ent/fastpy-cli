@@ -11,6 +11,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2025-12-06
+
+### 🎉 First Stable Release
+
+This release marks Fastpy CLI as **production-ready**. After extensive testing and community feedback, we're confident in the stability and feature completeness of the CLI.
+
+### ✨ Highlights
+
+- **Command Normalization**: All commands now consistently use `fastpy` prefix
+- **Renamed `init:ai` to `ai:init`**: Follows the `category:action` naming convention
+- **Improved Test Coverage**: All tests updated for new command patterns
+- **Clean Branch Strategy**: Development files separated from production
+
+### Changed
+
+- **Command Naming Convention**: Standardized all commands to follow `category:action` pattern
+  - `init:ai` → `ai:init` (generate AI assistant configuration files)
+  - All commands now use `fastpy` prefix consistently
+
+- **Safe Command Prefixes**: Updated allowlist for AI-generated commands
+  - Added `fastpy ai:`, `fastpy setup:`, `fastpy deploy:`, `fastpy domain:`, `fastpy env:`, `fastpy service:` prefixes
+  - Removed legacy `python cli.py` prefixes
+
+### Fixed
+
+- **Test Suite**: Updated all tests to use `fastpy` command prefix
+  - `test_utils.py`: Fixed command validation and safe command tests
+  - `test_ai.py`: Updated AI response parsing test data
+
+### Documentation
+
+- Updated all documentation to reflect `ai:init` command
+- Fixed JSON syntax highlighting in README (removed invalid `//` comments)
+
+### Internal
+
+- Improved code organization and consistency
+- Enhanced command validation for AI-generated commands
+
+---
+
 ## [0.6.7] - 2025-12-06
 
 ### Fixed
@@ -323,7 +364,8 @@ data = Crypt.decrypt(encrypted)
 
 ---
 
-[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.7...HEAD
+[Unreleased]: https://github.com/vutia-ent/fastpy-cli/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.7...v1.1.0
 [0.6.7]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.6...v0.6.7
 [0.6.6]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.5...v0.6.6
 [0.6.5]: https://github.com/vutia-ent/fastpy-cli/compare/v0.6.4...v0.6.5
