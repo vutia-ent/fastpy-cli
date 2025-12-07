@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.12] - 2025-12-07
+
+### Fixed
+
+- **SQL logging now properly suppressed**: Fixed SQLAlchemy Engine logger suppression timing
+- **No duplicate admin panel**: Passes `--no-header` to make:admin during setup wizard
+
+---
+
 ## [1.2.11] - 2025-12-07
 
 ### Improved

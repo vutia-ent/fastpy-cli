@@ -658,10 +658,9 @@ def full_setup(
                 # Step 5: Admin user (only if migrations succeeded)
                 console.print(f"\n[bold]Step {step}: Admin User[/bold]")
                 if Confirm.ask("Create super admin user?", default=True):
-                    # Run make:admin command directly
+                    # Run make:admin command directly (with --no-header to avoid duplicate panel)
                     from fastpy_cli.main import proxy_to_project_cli
-                    console.print()
-                    proxy_to_project_cli(["make:admin"])
+                    proxy_to_project_cli(["make:admin", "--no-header"])
         step += 1
 
     # Step 6: Pre-commit hooks
