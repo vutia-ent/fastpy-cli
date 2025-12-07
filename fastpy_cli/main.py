@@ -591,8 +591,8 @@ def new(
                     "[bold]Start Server[/bold]\n"
                     "  [cyan]fastpy serve[/cyan]\n\n"
                     "[bold]Generate Resources[/bold]\n"
-                    "  [cyan]fastpy make:resource Post title:str content:text -m[/cyan]\n"
-                    "  [cyan]fastpy make:resource Comment body:text post_id:int -m[/cyan]"
+                    "  [cyan]fastpy make:resource Post -f title:string:required -f body:text -m[/cyan]\n"
+                    "  [cyan]fastpy make:resource Comment -f body:text -f post_id:integer -m[/cyan]"
                 )
             else:
                 quickstart_content = (
@@ -600,8 +600,8 @@ def new(
                     f"  [cyan]cd {project_name} && source venv/bin/activate[/cyan]\n"
                     "  [cyan]fastpy serve[/cyan]\n\n"
                     "[bold]Generate Resources[/bold]\n"
-                    "  [cyan]fastpy make:resource Post title:str content:text -m[/cyan]\n"
-                    "  [cyan]fastpy make:resource Comment body:text post_id:int -m[/cyan]"
+                    "  [cyan]fastpy make:resource Post -f title:string:required -f body:text -m[/cyan]\n"
+                    "  [cyan]fastpy make:resource Comment -f body:text -f post_id:integer -m[/cyan]"
                 )
 
             console.print(
