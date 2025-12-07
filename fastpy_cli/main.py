@@ -572,33 +572,45 @@ def new(
             from fastpy_cli.setup import full_setup
             full_setup()
 
-            console.print()
-            console.print("[green]✓[/green] Project ready!")
-            console.print()
-
-            # Check if shell integration is installed for simplified instructions
+            # Check if shell integration is installed
             shell_integrated = is_shell_integration_installed()
 
-            console.print("[bold]To start developing:[/bold]")
+            # Jubilant success message
+            console.print()
+            console.print(
+                Panel.fit(
+                    "[bold green]🎉 Project Ready![/bold green]\n\n"
+                    f"[dim]Your API is set up at[/dim] [bold cyan]{project_name}/[/bold cyan]",
+                    border_style="green",
+                )
+            )
+            console.print()
+
+            # Quick start commands
+            console.print("[bold]Quick Start:[/bold]")
             if shell_integrated:
-                console.print(f"  [cyan]cd {project_name}[/cyan]  [dim](venv auto-activates)[/dim]")
-                console.print("  [cyan]fastpy serve[/cyan]")
+                console.print(f"  [cyan]fastpy serve[/cyan]")
             else:
-                console.print(f"  1. [cyan]cd {project_name}[/cyan]")
-                if sys.platform == "win32":
-                    console.print("  2. [cyan]venv\\Scripts\\activate[/cyan]")
-                else:
-                    console.print("  2. [cyan]source venv/bin/activate[/cyan]")
-                console.print("  3. [cyan]fastpy serve[/cyan]")
+                console.print(f"  [cyan]cd {project_name} && source venv/bin/activate[/cyan]")
+                console.print("  [cyan]fastpy serve[/cyan]")
 
             console.print()
-            console.print("[bold]Test your API:[/bold]")
-            console.print("  [blue]http://localhost:8000/docs[/blue]  [dim](Swagger UI)[/dim]")
-            console.print("  [cyan]curl http://localhost:8000/api/health[/cyan]")
+            console.print("[bold]Generate Resources:[/bold]")
+            console.print("  [cyan]fastpy make:resource Post title:str content:text -m[/cyan]")
+            console.print("  [cyan]fastpy make:resource Comment body:text post_id:int -m[/cyan]")
+
+            console.print()
+            console.print("[bold]API Documentation:[/bold]")
+            console.print("  [blue]http://localhost:8000/docs[/blue]     [dim]Swagger UI[/dim]")
+            console.print("  [blue]http://localhost:8000/redoc[/blue]    [dim]ReDoc[/dim]")
+
+            console.print()
+            console.print("[bold]Learn More:[/bold]")
+            console.print(f"  [blue]{DOCS_URL}[/blue]")
 
             if not shell_integrated:
                 console.print()
-                console.print("[dim]Tip: Run [cyan]fastpy shell:install[/cyan] for auto-activate on cd[/dim]")
+                console.print("[dim]Tip: [cyan]fastpy shell:install[/cyan] enables auto-activate on cd[/dim]")
 
         finally:
             os.chdir(original_dir)

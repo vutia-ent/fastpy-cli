@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.13] - 2025-12-07
+
+### Fixed
+
+- **SQL logging completely disabled**: Set `echo=False` in database engine config
+
+### Improved
+
+- **Jubilant success message**: Celebratory panel with clear sections:
+  - Quick Start: Just `fastpy serve` if shell integration installed
+  - Generate Resources: Example commands for creating models
+  - API Documentation: Swagger UI and ReDoc links
+  - Learn More: Link to documentation
+
+---
+
 ## [1.2.12] - 2025-12-07
 
 ### Fixed
