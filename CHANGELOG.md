@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.11] - 2025-12-07
+
+### Improved
+
+- **Cleaner setup logging**: Removed duplicate step panels for streamlined output
+- **Suppressed SQL logs**: No more verbose SQLAlchemy SQL statements during admin creation
+- **Better pre-commit handling**: Shows "Skipped" instead of warning when config is missing
+- **Consolidated messages**: Removed redundant "Setup Complete" panel (success shown once at end)
+
+---
+
 ## [1.2.10] - 2025-12-07
 
 ### Fixed

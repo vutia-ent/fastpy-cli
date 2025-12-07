@@ -249,11 +249,12 @@ def create_database(config: DatabaseConfig) -> bool:
 # ============================================
 
 
-def setup_env() -> bool:
+def setup_env(show_header: bool = True) -> bool:
     """
     Initialize .env file from .env.example.
     """
-    console.print(Panel.fit("[bold cyan]Environment Setup[/bold cyan]", border_style="cyan"))
+    if show_header:
+        console.print(Panel.fit("[bold cyan]Environment Setup[/bold cyan]", border_style="cyan"))
 
     env_path = get_env_path()
     example_path = Path.cwd() / ".env.example"
@@ -288,11 +289,13 @@ def setup_db(
     database: Optional[str] = None,
     create: bool = True,
     interactive: bool = True,
+    show_header: bool = True,
 ) -> Optional[DatabaseConfig]:
     """
     Configure database connection.
     """
-    console.print(Panel.fit("[bold cyan]Database Configuration[/bold cyan]", border_style="cyan"))
+    if show_header:
+        console.print(Panel.fit("[bold cyan]Database Configuration[/bold cyan]", border_style="cyan"))
 
     # Database driver selection
     if not driver and interactive:
@@ -381,11 +384,12 @@ def setup_db(
     return config
 
 
-def setup_secret(length: int = 64) -> str:
+def setup_secret(length: int = 64, show_header: bool = True) -> str:
     """
     Generate a secure secret key for JWT tokens.
     """
-    console.print(Panel.fit("[bold cyan]Secret Key Generation[/bold cyan]", border_style="cyan"))
+    if show_header:
+        console.print(Panel.fit("[bold cyan]Secret Key Generation[/bold cyan]", border_style="cyan"))
 
     secret_key = secrets.token_hex(length // 2)
     update_env("SECRET_KEY", secret_key)
@@ -396,24 +400,23 @@ def setup_secret(length: int = 64) -> str:
     return secret_key
 
 
-def setup_hooks() -> bool:
+def setup_hooks(show_header: bool = True) -> bool:
     """
     Install pre-commit hooks for code quality.
     """
-    console.print(Panel.fit("[bold cyan]Pre-commit Hooks Setup[/bold cyan]", border_style="cyan"))
+    if show_header:
+        console.print(Panel.fit("[bold cyan]Pre-commit Hooks Setup[/bold cyan]", border_style="cyan"))
 
     if not Path(".git").exists():
-        console.print("[yellow]⚠[/yellow] Not a git repository. Initialize with: git init")
+        console.print("[dim]Skipped: Not a git repository[/dim]")
         return False
 
     if not check_command_exists("pre-commit"):
-        console.print(
-            "[yellow]⚠[/yellow] pre-commit not found. Install with: pip install pre-commit"
-        )
+        console.print("[dim]Skipped: pre-commit not installed[/dim]")
         return False
 
     if not Path(".pre-commit-config.yaml").exists():
-        console.print("[yellow]⚠[/yellow] .pre-commit-config.yaml not found")
+        console.print("[dim]Skipped: No .pre-commit-config.yaml found[/dim]")
         return False
 
     with Progress(
@@ -500,11 +503,12 @@ def show_venv_hint(command: str = "", extra_hint: str = "") -> None:
         console.print(f"[dim]{extra_hint}[/dim]")
 
 
-def run_migrations(auto_generate: bool = True) -> bool:
+def run_migrations(auto_generate: bool = True, show_header: bool = True) -> bool:
     """
     Run database migrations.
     """
-    console.print(Panel.fit("[bold cyan]Database Migrations[/bold cyan]", border_style="cyan"))
+    if show_header:
+        console.print(Panel.fit("[bold cyan]Database Migrations[/bold cyan]", border_style="cyan"))
 
     # Get alembic command (prefer venv)
     alembic_cmd = get_venv_command("alembic")
@@ -627,52 +631,44 @@ def full_setup(
         )
     )
 
+    step = 1
+
     # Step 1: Environment setup
-    console.print("\n[bold]Step 1: Environment Setup[/bold]")
-    setup_env()
+    console.print(f"\n[bold]Step {step}: Environment[/bold]")
+    setup_env(show_header=False)
+    step += 1
 
     # Step 2: Database configuration
     if not skip_db:
-        console.print("\n[bold]Step 2: Database Configuration[/bold]")
-        setup_db()
+        console.print(f"\n[bold]Step {step}: Database[/bold]")
+        setup_db(show_header=False)
+        step += 1
 
     # Step 3: Secret key
-    console.print("\n[bold]Step 3: Security[/bold]")
-    setup_secret()
+    console.print(f"\n[bold]Step {step}: Security[/bold]")
+    setup_secret(show_header=False)
+    step += 1
 
     # Step 4: Migrations
     if not skip_migrations:
-        console.print("\n[bold]Step 4: Database Migrations[/bold]")
-        if (
-            Confirm.ask("Run database migrations?", default=True)
-            and run_migrations()
-            and not skip_admin
-        ):
-            # Step 5: Admin user (only if migrations succeeded)
-            console.print("\n[bold]Step 5: Admin User[/bold]")
-            if Confirm.ask("Create super admin user?", default=True):
-                # Run make:admin command directly
-                from fastpy_cli.main import proxy_to_project_cli
-                console.print()
-                proxy_to_project_cli(["make:admin"])
+        console.print(f"\n[bold]Step {step}: Migrations[/bold]")
+        if Confirm.ask("Run database migrations?", default=True):
+            if run_migrations(show_header=False) and not skip_admin:
+                step += 1
+                # Step 5: Admin user (only if migrations succeeded)
+                console.print(f"\n[bold]Step {step}: Admin User[/bold]")
+                if Confirm.ask("Create super admin user?", default=True):
+                    # Run make:admin command directly
+                    from fastpy_cli.main import proxy_to_project_cli
+                    console.print()
+                    proxy_to_project_cli(["make:admin"])
+        step += 1
 
     # Step 6: Pre-commit hooks
     if not skip_hooks:
-        console.print("\n[bold]Step 6: Code Quality[/bold]")
+        console.print(f"\n[bold]Step {step}: Code Quality[/bold]")
         if Confirm.ask("Install pre-commit hooks?", default=True):
-            setup_hooks()
-
-    # Complete!
-    console.print(
-        Panel.fit(
-            "[bold green]✓ Setup Complete![/bold green]\n\n"
-            "[cyan]Next steps:[/cyan]\n"
-            "  1. Start server: [yellow]fastpy serve[/yellow]\n"
-            "  2. Visit docs:   [blue]http://localhost:8000/docs[/blue]\n"
-            "  3. Generate code: [yellow]fastpy make:resource Post -m[/yellow]",
-            border_style="green",
-        )
-    )
+            setup_hooks(show_header=False)
 
 
 # Export for use in main CLI
