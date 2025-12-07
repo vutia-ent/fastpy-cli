@@ -584,29 +584,50 @@ def new(
                     border_style="green",
                 )
             )
-            console.print()
 
-            # Quick start commands
-            console.print("[bold]Quick Start:[/bold]")
+            # Quick Start box
             if shell_integrated:
-                console.print(f"  [cyan]fastpy serve[/cyan]")
+                quickstart_content = (
+                    "[bold]Start Server[/bold]\n"
+                    "  [cyan]fastpy serve[/cyan]\n\n"
+                    "[bold]Generate Resources[/bold]\n"
+                    "  [cyan]fastpy make:resource Post title:str content:text -m[/cyan]\n"
+                    "  [cyan]fastpy make:resource Comment body:text post_id:int -m[/cyan]"
+                )
             else:
-                console.print(f"  [cyan]cd {project_name} && source venv/bin/activate[/cyan]")
-                console.print("  [cyan]fastpy serve[/cyan]")
+                quickstart_content = (
+                    "[bold]Start Server[/bold]\n"
+                    f"  [cyan]cd {project_name} && source venv/bin/activate[/cyan]\n"
+                    "  [cyan]fastpy serve[/cyan]\n\n"
+                    "[bold]Generate Resources[/bold]\n"
+                    "  [cyan]fastpy make:resource Post title:str content:text -m[/cyan]\n"
+                    "  [cyan]fastpy make:resource Comment body:text post_id:int -m[/cyan]"
+                )
 
-            console.print()
-            console.print("[bold]Generate Resources:[/bold]")
-            console.print("  [cyan]fastpy make:resource Post title:str content:text -m[/cyan]")
-            console.print("  [cyan]fastpy make:resource Comment body:text post_id:int -m[/cyan]")
+            console.print(
+                Panel(
+                    quickstart_content,
+                    title="[bold]Quick Start[/bold]",
+                    border_style="cyan",
+                )
+            )
 
-            console.print()
-            console.print("[bold]API Documentation:[/bold]")
-            console.print("  [blue]http://localhost:8000/docs[/blue]     [dim]Swagger UI[/dim]")
-            console.print("  [blue]http://localhost:8000/redoc[/blue]    [dim]ReDoc[/dim]")
+            # Documentation box
+            docs_content = (
+                "[bold]API Documentation[/bold]\n"
+                "  [blue]http://localhost:8000/docs[/blue]   [dim]Swagger UI[/dim]\n"
+                "  [blue]http://localhost:8000/redoc[/blue]  [dim]ReDoc[/dim]\n\n"
+                "[bold]Learn More[/bold]\n"
+                f"  [blue]{DOCS_URL}[/blue]"
+            )
 
-            console.print()
-            console.print("[bold]Learn More:[/bold]")
-            console.print(f"  [blue]{DOCS_URL}[/blue]")
+            console.print(
+                Panel(
+                    docs_content,
+                    title="[bold]Documentation[/bold]",
+                    border_style="blue",
+                )
+            )
 
             if not shell_integrated:
                 console.print()

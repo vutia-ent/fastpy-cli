@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.14] - 2025-12-07
+
+### Improved
+
+- **Organized success panels**: Three distinct boxes for better readability:
+  - 🎉 Project Ready (green) - Celebratory header
+  - Quick Start (cyan) - Server & resource generation commands
+  - Documentation (blue) - API docs & learning resources
+
+---
+
 ## [1.2.13] - 2025-12-07
 
 ### Fixed
