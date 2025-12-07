@@ -575,13 +575,30 @@ def new(
             console.print()
             console.print("[green]✓[/green] Project ready!")
             console.print()
+
+            # Check if shell integration is installed for simplified instructions
+            shell_integrated = is_shell_integration_installed()
+
             console.print("[bold]To start developing:[/bold]")
-            console.print(f"  1. [cyan]cd {project_name}[/cyan]")
-            if sys.platform == "win32":
-                console.print("  2. [cyan]venv\\Scripts\\activate[/cyan]")
+            if shell_integrated:
+                console.print(f"  [cyan]cd {project_name}[/cyan]  [dim](venv auto-activates)[/dim]")
+                console.print("  [cyan]fastpy serve[/cyan]")
             else:
-                console.print("  2. [cyan]source venv/bin/activate[/cyan]")
-            console.print("  3. [cyan]fastpy serve[/cyan]")
+                console.print(f"  1. [cyan]cd {project_name}[/cyan]")
+                if sys.platform == "win32":
+                    console.print("  2. [cyan]venv\\Scripts\\activate[/cyan]")
+                else:
+                    console.print("  2. [cyan]source venv/bin/activate[/cyan]")
+                console.print("  3. [cyan]fastpy serve[/cyan]")
+
+            console.print()
+            console.print("[bold]Test your API:[/bold]")
+            console.print("  [blue]http://localhost:8000/docs[/blue]  [dim](Swagger UI)[/dim]")
+            console.print("  [cyan]curl http://localhost:8000/api/health[/cyan]")
+
+            if not shell_integrated:
+                console.print()
+                console.print("[dim]Tip: Run [cyan]fastpy shell:install[/cyan] for auto-activate on cd[/dim]")
 
         finally:
             os.chdir(original_dir)
@@ -1525,6 +1542,18 @@ def get_shell_config_path() -> Optional[Path]:
             return bash_profile
         return home / ".bashrc"
     return None
+
+
+def is_shell_integration_installed() -> bool:
+    """Check if fastpy shell integration is installed."""
+    shell_config = get_shell_config_path()
+    if not shell_config or not shell_config.exists():
+        return False
+    try:
+        content = shell_config.read_text()
+        return "# Fastpy Shell Integration" in content
+    except Exception:
+        return False
 
 
 def install_mysql_client_macos() -> bool:

@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.10] - 2025-12-07
+
+### Fixed
+
+- **Admin creation now works**: When answering "Y" to "Create super admin user?" during setup, it now actually runs `make:admin` instead of just showing instructions
+
+### Improved
+
+- **Shell-aware success message**: After `fastpy new`, instructions now adapt based on shell integration:
+  - With shell integration: Shows simplified 2-step flow (cd + serve)
+  - Without: Shows full 3-step flow with venv activation
+- **API testing instructions**: Now shows how to test your API after project creation:
+  - Swagger UI URL: `http://localhost:8000/docs`
+  - Health check: `curl http://localhost:8000/api/health`
+- Suggests `fastpy shell:install` if not already set up
+
+---
+
 ## [1.2.9] - 2025-12-06
 
 ### Added
